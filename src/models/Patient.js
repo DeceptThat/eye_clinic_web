@@ -4,12 +4,12 @@ import { timestampId } from "@/lib/ids";
 const PatientSchema = new mongoose.Schema(
   {
     patientNo: { type: String, unique: true },
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
+    firstName: { type: String, trim: true, required: true },
+    lastName: { type: String, trim: true, required: true },
     dateOfBirth: { type: Date, required: true },
     gender: { type: String, enum: ["Male", "Female", "Other"] },
-    phone: { type: String, required: true },
-    email: String,
+    phone: { type: String, trim: true, required: true },
+    email: { type: String, trim: true },
     address: String,
     medicalNotes: String,
   },

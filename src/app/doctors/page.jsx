@@ -2,15 +2,28 @@
 import { useEffect, useState } from "react";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const REASONS = ["Leave", "Sick", "Emergency surgery", "Other"];
 const EMPTY = {
   firstName: "", lastName: "", specialty: "", licenseNo: "",
-  phone: "", email: "", workingDays: [], isActive: true,
+  phone: "", email: "", workingDays: [], isActive: true, timeOff: [],
 };
+
+// ISO date from the database -> value for <input type="datetime-local">
+function toLocalInput(iso) {
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+// Is the doctor on time off right now?
+function currentTimeOff(d) {
+  const now = new Date();
+  return (d.timeOff || []).find((t) => new Date(t.start) <= now && now < new Date(t.end));
+}
 
 export default function DoctorsPage() {
   const [doctors, setDoctors] = useState([]);
   const [q, setQ] = useState("");
-  const [form, setForm] = useState(null);
+  const [form, setForm] = useState(null); // null = form hidden
   const [error, setError] = useState("");
 
   async function load() {
@@ -29,7 +42,15 @@ export default function DoctorsPage() {
 
   function openEdit(d) {
     setError("");
-    setForm({ ...EMPTY, ...d });
+    setForm({
+      ...EMPTY,
+      ...d,
+      timeOff: (d.timeOff || []).map((t) => ({
+        reason: t.reason,
+        start: toLocalInput(t.start),
+        end: toLocalInput(t.end),
+      })),
+    });
   }
 
   function toggleDay(day) {
@@ -39,13 +60,38 @@ export default function DoctorsPage() {
     setForm({ ...form, workingDays: DAYS.filter((d) => days.includes(d)) }); // keep Mon→Sun order
   }
 
+  function addTimeOff() {
+    setForm({ ...form, timeOff: [...form.timeOff, { start: "", end: "", reason: "Leave" }] });
+  }
+
+  function updateTimeOff(i, field, value) {
+    setForm({
+      ...form,
+      timeOff: form.timeOff.map((t, j) => (j === i ? { ...t, [field]: value } : t)),
+    });
+  }
+
+  function removeTimeOff(i) {
+    setForm({ ...form, timeOff: form.timeOff.filter((_, j) => j !== i) });
+  }
+
   async function save(e) {
     e.preventDefault();
+    if (form.timeOff.some((t) => !t.start || !t.end || new Date(t.end) <= new Date(t.start))) {
+      return setError("Each time off needs a start and an end that is after the start");
+    }
     const isEdit = Boolean(form._id);
     const res = await fetch(isEdit ? `/api/doctors/${form._id}` : "/api/doctors", {
       method: isEdit ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        timeOff: form.timeOff.map((t) => ({
+          reason: t.reason,
+          start: new Date(t.start).toISOString(),
+          end: new Date(t.end).toISOString(),
+        })),
+      }),
     });
     const data = await res.json();
     if (!res.ok) return setError(data.error);
@@ -87,6 +133,7 @@ export default function DoctorsPage() {
           <h2 className="col-span-2 font-semibold">
             {form._id ? `Edit ${form.doctorNo}` : "New doctor"}
           </h2>
+
           <input className={input} placeholder="First name" required value={form.firstName} onChange={set("firstName")} />
           <input className={input} placeholder="Last name" required value={form.lastName} onChange={set("lastName")} />
           <select className={input} required value={form.specialty} onChange={set("specialty")}>
@@ -95,8 +142,8 @@ export default function DoctorsPage() {
             <option>Ophthalmologist</option>
           </select>
           <input className={input} placeholder="Licence no." required value={form.licenseNo} onChange={set("licenseNo")} />
-          <input className={input} placeholder="Phone" value={form.phone} onChange={set("phone")} />
-          <input className={input} type="email" placeholder="Email" value={form.email} onChange={set("email")} />
+          <input className={input} placeholder="Phone" value={form.phone || ""} onChange={set("phone")} />
+          <input className={input} type="email" placeholder="Email" value={form.email || ""} onChange={set("email")} />
 
           <div className="col-span-2">
             <p className="mb-1 text-sm">Working days</p>
@@ -112,6 +159,48 @@ export default function DoctorsPage() {
                 </label>
               ))}
             </div>
+          </div>
+
+          <div className="col-span-2">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm">Time off (leave, sick, emergency surgery)</p>
+              <button type="button" onClick={addTimeOff} className="text-teal-500 text-sm">
+                + Add time off
+              </button>
+            </div>
+            {form.timeOff.length === 0 && (
+              <p className="text-sm text-gray-500">No time off</p>
+            )}
+            {form.timeOff.map((t, i) => (
+              <div key={i} className="flex gap-2 mb-2">
+                <input
+                  type="datetime-local"
+                  className={input}
+                  required
+                  value={t.start}
+                  onChange={(e) => updateTimeOff(i, "start", e.target.value)}
+                />
+                <input
+                  type="datetime-local"
+                  className={input}
+                  required
+                  value={t.end}
+                  onChange={(e) => updateTimeOff(i, "end", e.target.value)}
+                />
+                <select
+                  className={input}
+                  value={t.reason}
+                  onChange={(e) => updateTimeOff(i, "reason", e.target.value)}
+                >
+                  {REASONS.map((r) => (
+                    <option key={r}>{r}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => removeTimeOff(i)} className="text-red-600 px-2">
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
 
           <label className="col-span-2 flex items-center gap-2">
@@ -144,23 +233,30 @@ export default function DoctorsPage() {
           </tr>
         </thead>
         <tbody>
-          {doctors.map((d) => (
-            <tr key={d._id} className="border-b">
-              <td className="p-2 font-mono text-sm">{d.doctorNo}</td>
-              <td className="p-2">Dr. {d.firstName} {d.lastName}</td>
-              <td className="p-2">{d.specialty}</td>
-              <td className="p-2">{d.workingDays.join(", ") || "-"}</td>
-              <td className="p-2">
-                <span className={d.isActive ? "text-green-500" : "text-gray-500"}>
-                  {d.isActive ? "Active" : "Inactive"}
-                </span>
-              </td>
-              <td className="p-2 text-right space-x-2">
-                <button onClick={() => openEdit(d)} className="text-teal-500">Edit</button>
-                <button onClick={() => remove(d)} className="text-red-600">Delete</button>
-              </td>
-            </tr>
-          ))}
+          {doctors.map((d) => {
+            const off = currentTimeOff(d);
+            return (
+              <tr key={d._id} className="border-b">
+                <td className="p-2 font-mono text-sm">{d.doctorNo}</td>
+                <td className="p-2">Dr. {d.firstName} {d.lastName}</td>
+                <td className="p-2">{d.specialty}</td>
+                <td className="p-2">{d.workingDays?.join(", ") || "-"}</td>
+                <td className="p-2">
+                  {!d.isActive ? (
+                    <span className="text-gray-500">Inactive</span>
+                  ) : off ? (
+                    <span className="text-amber-500">Off now ({off.reason})</span>
+                  ) : (
+                    <span className="text-green-500">Active</span>
+                  )}
+                </td>
+                <td className="p-2 text-right space-x-2">
+                  <button onClick={() => openEdit(d)} className="text-teal-500">Edit</button>
+                  <button onClick={() => remove(d)} className="text-red-600">Delete</button>
+                </td>
+              </tr>
+            );
+          })}
           {doctors.length === 0 && (
             <tr>
               <td colSpan={6} className="p-4 text-center text-gray-500">No doctors found</td>
