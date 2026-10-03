@@ -40,3 +40,21 @@ export async function DELETE(req, { params }) {
   if (!patient) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
+
+
+
+export async function GET(req) {
+  await dbConnect();
+  const q = req.nextUrl.searchParams.get("q")?.trim();
+  let filter = {};
+  if (q) {
+    const safe = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // treat input as plain text
+    filter = {
+      $or: ["patientNo", "firstName", "lastName", "phone"].map((f) => ({
+        [f]: { $regex: safe, $options: "i" },
+      })),
+    };
+  }
+  const patients = await Patient.find(filter).sort({ createdAt: -1 });
+  return NextResponse.json(patients);
+}

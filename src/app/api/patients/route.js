@@ -2,9 +2,19 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import Patient from "@/models/Patient";
 
-export async function GET() {
+export async function GET(req) {
   await dbConnect();
-  const patients = await Patient.find().sort({ createdAt: -1 });
+  const q = req.nextUrl.searchParams.get("q")?.trim();
+  let filter = {};
+  if (q) {
+    const safe = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    filter = {
+      $or: ["patientNo", "firstName", "lastName", "phone"].map((f) => ({
+        [f]: { $regex: safe, $options: "i" },
+      })),
+    };
+  }
+  const patients = await Patient.find(filter).sort({ createdAt: -1 });
   return NextResponse.json(patients);
 }
 
