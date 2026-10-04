@@ -22,7 +22,8 @@ export async function POST(req) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 8, // 8 hours
+    // No maxAge: a session cookie, so closing the browser logs you out.
+    // The token itself still expires after 8 hours (see lib/auth.js).
   });
   return res;
 }
