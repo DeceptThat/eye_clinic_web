@@ -5,6 +5,7 @@ import Appointment from "@/models/Appointment";
 import "@/models/Patient";
 import "@/models/Doctor";
 import { checkBooking } from "@/lib/appointmentRules";
+import { requireRole } from "@/lib/auth";
 
 const POPULATE = [
   { path: "patient", select: "patientNo firstName lastName phone" },
@@ -13,6 +14,8 @@ const POPULATE = [
 const badId = (id) => !mongoose.Types.ObjectId.isValid(id);
 
 export async function GET(req, { params }) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   const { id } = await params;
   if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   await dbConnect();
@@ -22,6 +25,8 @@ export async function GET(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   const { id } = await params;
   if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   await dbConnect();
@@ -65,6 +70,8 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   const { id } = await params;
   if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   await dbConnect();

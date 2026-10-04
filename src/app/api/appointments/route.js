@@ -4,6 +4,7 @@ import Appointment from "@/models/Appointment";
 import "@/models/Patient";
 import "@/models/Doctor";
 import { checkBooking } from "@/lib/appointmentRules";
+import { requireRole } from "@/lib/auth";
 
 const POPULATE = [
   { path: "patient", select: "patientNo firstName lastName phone" },
@@ -12,6 +13,8 @@ const POPULATE = [
 
 // GET /api/appointments?date=2026-10-05&doctor=<id>&status=Scheduled
 export async function GET(req) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   await dbConnect();
   const sp = req.nextUrl.searchParams;
   const filter = {};
@@ -30,6 +33,8 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   await dbConnect();
   const body = await req.json();
 

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import Patient from "@/models/Patient";
+import { requireRole } from "@/lib/auth";
 
 export async function GET(req) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   await dbConnect();
   const q = req.nextUrl.searchParams.get("q")?.trim();
   let filter = {};
@@ -19,6 +22,8 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   await dbConnect();
   try {
     const patient = await Patient.create(await req.json());

@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db";
 import Patient from "@/models/Patient";
+import { requireRole } from "@/lib/auth";
 
 function badId(id) {
   return !mongoose.Types.ObjectId.isValid(id);
 }
 
 export async function GET(req, { params }) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   const { id } = await params;
   if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   await dbConnect();
@@ -17,6 +20,8 @@ export async function GET(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   const { id } = await params;
   if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   await dbConnect();
@@ -33,28 +38,12 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   const { id } = await params;
   if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   await dbConnect();
   const patient = await Patient.findByIdAndDelete(id);
   if (!patient) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
-}
-
-
-
-export async function GET(req) {
-  await dbConnect();
-  const q = req.nextUrl.searchParams.get("q")?.trim();
-  let filter = {};
-  if (q) {
-    const safe = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // treat input as plain text
-    filter = {
-      $or: ["patientNo", "firstName", "lastName", "phone"].map((f) => ({
-        [f]: { $regex: safe, $options: "i" },
-      })),
-    };
-  }
-  const patients = await Patient.find(filter).sort({ createdAt: -1 });
-  return NextResponse.json(patients);
 }

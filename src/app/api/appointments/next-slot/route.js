@@ -3,6 +3,7 @@ import { dbConnect } from "@/lib/db";
 import Doctor from "@/models/Doctor";
 import Appointment from "@/models/Appointment";
 import { SLOT_MINUTES } from "@/lib/appointmentRules";
+import { requireRole } from "@/lib/auth";
 
 const OPEN_HOUR = 9;   // clinic opens 09:00 (Thailand time)
 const CLOSE_HOUR = 18; // last appointment must end by 18:00
@@ -20,6 +21,8 @@ function startOfBangkokDay(t) {
 // GET /api/appointments/next-slot?doctor=<id>            -> earliest free slot (next 2 weeks)
 // GET /api/appointments/next-slot?doctor=<id>&walkin=1   -> today only, after the last walk-in
 export async function GET(req) {
+  const auth = await requireRole(req);
+  if (auth.error) return auth.error;
   await dbConnect();
   const sp = req.nextUrl.searchParams;
   const walkin = sp.get("walkin") === "1";
