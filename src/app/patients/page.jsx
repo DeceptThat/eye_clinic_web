@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useUser } from "@/components/AppShell";
 import {
   Alert, Avatar, EmptyRow, Field, Icon, Modal, Page, PageHeader, SearchInput, Toolbar, ageFrom, fmtDate,
 } from "@/components/ui";
@@ -22,6 +23,8 @@ export default function PatientsPage() {
 function Patients() {
   const router = useRouter();
   const params = useSearchParams();
+  const user = useUser();
+  const isAdmin = user?.role === "Admin";
   const [patients, setPatients] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [q, setQ] = useState("");
@@ -145,9 +148,11 @@ function Patients() {
                   <button onClick={() => openEdit(p)} className="btn-icon" title="Edit" aria-label="Edit">
                     <Icon name="edit" className="h-4 w-4" />
                   </button>
-                  <button onClick={() => remove(p)} className="btn-icon-danger" title="Delete" aria-label="Delete">
-                    <Icon name="trash" className="h-4 w-4" />
-                  </button>
+                  {isAdmin && (
+                    <button onClick={() => remove(p)} className="btn-icon-danger" title="Delete" aria-label="Delete">
+                      <Icon name="trash" className="h-4 w-4" />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

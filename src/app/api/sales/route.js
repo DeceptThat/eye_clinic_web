@@ -108,7 +108,7 @@ export async function POST(req) {
         $or: [{ expiryDate: null }, { expiryDate: { $gte: new Date() } }],
       },
       { $inc: { stockQty: -qty } },
-      { new: true }
+      { returnDocument: "after" }
     );
     if (!p) {
       await giveBack();

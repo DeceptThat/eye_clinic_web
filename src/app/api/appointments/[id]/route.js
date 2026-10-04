@@ -77,7 +77,7 @@ export async function PUT(req, { params }) {
 
   try {
     const updated = await Appointment.findByIdAndUpdate(id, body, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     }).populate(POPULATE);
     return NextResponse.json(updated);

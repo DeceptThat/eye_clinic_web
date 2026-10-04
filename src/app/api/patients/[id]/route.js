@@ -28,7 +28,7 @@ export async function PUT(req, { params }) {
   try {
     // The patient number never changes
     const patient = await Patient.findByIdAndUpdate(id, omit(body, [...SYSTEM_FIELDS, "patientNo"]), {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
     if (!patient) return fail("Not found", 404);
@@ -39,7 +39,7 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
-  const auth = await requireRole(req);
+  const auth = await requireRole(req, "Admin");
   if (auth.error) return auth.error;
   const { id } = await params;
   if (!isId(id)) return fail("Invalid id");

@@ -29,7 +29,7 @@ export async function PUT(req, { params }) {
   await dbConnect();
   try {
     const doctor = await Doctor.findByIdAndUpdate(id, omit(body, [...SYSTEM_FIELDS, "doctorNo"]), {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
     if (!doctor) return fail("Not found", 404);

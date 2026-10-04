@@ -37,12 +37,12 @@ export async function PUT(req, { params }) {
       if (!Number.isInteger(qty) || qty <= 0) {
         return NextResponse.json({ error: "Restock amount must be a whole number above 0" }, { status: 400 });
       }
-      product = await Product.findByIdAndUpdate(id, { $inc: { stockQty: qty } }, { new: true });
+      product = await Product.findByIdAndUpdate(id, { $inc: { stockQty: qty } }, { returnDocument: "after" });
     } else {
       // stockQty is ignored here: stock changes only via Restock or sales
       const { _id, createdAt, updatedAt, __v, stockQty, ...update } = body;
       if (update.category !== "Medicine") update.expiryDate = null;
-      product = await Product.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+      product = await Product.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true });
     }
     if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(product);

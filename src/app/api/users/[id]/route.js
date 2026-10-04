@@ -29,7 +29,7 @@ export async function PUT(req, { params }) {
     update.passwordHash = await bcrypt.hash(password, 10);
   }
   try {
-    const user = await User.findByIdAndUpdate(id, update, { new: true, runValidators: true })
+    const user = await User.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true })
       .select("-passwordHash");
     if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(user);

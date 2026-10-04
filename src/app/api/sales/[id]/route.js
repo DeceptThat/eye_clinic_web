@@ -43,7 +43,7 @@ export async function PUT(req, { params }) {
   const sale = await Sale.findOneAndUpdate(
     { _id: id, status: "Completed" },
     { status: "Voided", voidedAt: new Date() },
-    { new: true }
+    { returnDocument: "after" }
   );
   if (!sale) return NextResponse.json({ error: "Sale not found or already voided" }, { status: 409 });
 
