@@ -5,29 +5,40 @@ import "@/models/Patient";
 import "@/models/Doctor";
 import { checkBooking } from "@/lib/appointmentRules";
 import { requireRole } from "@/lib/auth";
+import { friendlyError } from "@/lib/errors";
+import { saveWithNumber } from "@/lib/ids";
+import { BAD_BODY, bangkokDay, fail, isId, pick, readBody } from "@/lib/http";
 
 const POPULATE = [
   { path: "patient", select: "patientNo firstName lastName phone" },
   { path: "doctor", select: "doctorNo firstName lastName specialty" },
 ];
 
-// GET /api/appointments?date=2026-10-05&doctor=<id>&status=Scheduled
+// Fields the browser may set when booking
+const FIELDS = ["patient", "doctor", "dateTime", "reason", "notes"];
+
+// GET /api/appointments?date=2026-10-05&doctor=<id>&status=Scheduled&patient=<id>
 export async function GET(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
-  await dbConnect();
   const sp = req.nextUrl.searchParams;
   const filter = {};
 
   const date = sp.get("date");
   if (date) {
-    const start = new Date(`${date}T00:00:00+07:00`); // whole day in Thailand time
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    filter.dateTime = { $gte: start, $lt: end };
+    const day = bangkokDay(date); // whole day in Thailand time
+    if (!day) return fail("Date is not valid");
+    filter.dateTime = { $gte: day.start, $lt: day.end };
   }
-  if (sp.get("doctor")) filter.doctor = sp.get("doctor");
+  for (const key of ["doctor", "patient"]) {
+    const v = sp.get(key);
+    if (!v) continue;
+    if (!isId(v)) return fail(`${key === "doctor" ? "Doctor" : "Patient"} id is not valid`);
+    filter[key] = v;
+  }
   if (sp.get("status")) filter.status = sp.get("status");
 
+  await dbConnect();
   const list = await Appointment.find(filter).sort({ dateTime: 1 }).populate(POPULATE);
   return NextResponse.json(list);
 }
@@ -35,20 +46,22 @@ export async function GET(req) {
 export async function POST(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
+  const body = await readBody(req);
+  if (!body) return fail(BAD_BODY);
   await dbConnect();
-  const body = await req.json();
 
   const problem = await checkBooking({
     patientId: body.patient,
     doctorId: body.doctor,
     dateTime: body.dateTime,
   });
-  if (problem) return NextResponse.json({ error: problem }, { status: 409 });
+  if (problem) return fail(problem, 409);
 
   try {
-    const created = await Appointment.create({ ...body, status: "Scheduled" });
-    return NextResponse.json(await created.populate(POPULATE), { status: 201 });
+    const appt = new Appointment({ ...pick(body, FIELDS), status: "Scheduled" });
+    await saveWithNumber(appt, "appointmentNo");
+    return NextResponse.json(await appt.populate(POPULATE), { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    return fail(friendlyError(err));
   }
 }

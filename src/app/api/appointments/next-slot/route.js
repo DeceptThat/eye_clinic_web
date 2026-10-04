@@ -4,6 +4,7 @@ import Doctor from "@/models/Doctor";
 import Appointment from "@/models/Appointment";
 import { SLOT_MINUTES } from "@/lib/appointmentRules";
 import { requireRole } from "@/lib/auth";
+import { fail, isId } from "@/lib/http";
 
 const OPEN_HOUR = 9;   // clinic opens 09:00 (Thailand time)
 const CLOSE_HOUR = 18; // last appointment must end by 18:00
@@ -23,9 +24,10 @@ function startOfBangkokDay(t) {
 export async function GET(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
-  await dbConnect();
   const sp = req.nextUrl.searchParams;
   const walkin = sp.get("walkin") === "1";
+  if (!isId(sp.get("doctor"))) return fail("Please choose a doctor");
+  await dbConnect();
   const doctor = await Doctor.findById(sp.get("doctor"));
   if (!doctor) return NextResponse.json({ error: "Doctor not found" }, { status: 404 });
   const name = `Dr. ${doctor.firstName} ${doctor.lastName}`;
@@ -37,7 +39,7 @@ export async function GET(req) {
 
   if (walkin) {
     const today = DAY_NAMES[new Date(now + BKK).getUTCDay()];
-    if (!doctor.workingDays.includes(today)) {
+    if (!(doctor.workingDays || []).includes(today)) {
       return NextResponse.json({ error: `${name} isn't working today (${today})` }, { status: 409 });
     }
     horizon = startOfBangkokDay(now) + DAY; // end of today
@@ -62,7 +64,7 @@ export async function GET(req) {
     const local = new Date(t + BKK);
     const minutes = local.getUTCHours() * 60 + local.getUTCMinutes();
     if (minutes < OPEN_HOUR * 60 || minutes + SLOT_MINUTES > CLOSE_HOUR * 60) continue;
-    if (!doctor.workingDays.includes(DAY_NAMES[local.getUTCDay()])) continue;
+    if (!(doctor.workingDays || []).includes(DAY_NAMES[local.getUTCDay()])) continue;
     const end = t + SLOT;
     if ((doctor.timeOff || []).some((o) => o.start.getTime() < end && t < o.end.getTime())) continue;
     if (booked.some((b) => Math.abs(b.dateTime.getTime() - t) < SLOT)) continue;

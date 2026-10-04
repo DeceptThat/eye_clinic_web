@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db";
 import Product from "@/models/Product";
 import Sale from "@/models/Sale";
 import { requireRole } from "@/lib/auth";
+import { friendlyError } from "@/lib/errors";
+import { BAD_BODY, fail, isId, readBody } from "@/lib/http";
 
-const badId = (id) => !mongoose.Types.ObjectId.isValid(id);
+const badId = (id) => !isId(id);
 
 export async function GET(req, { params }) {
   const auth = await requireRole(req);
@@ -25,9 +26,10 @@ export async function PUT(req, { params }) {
   if (auth.error) return auth.error;
   const { id } = await params;
   if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  const body = await readBody(req);
+  if (!body) return fail(BAD_BODY);
   await dbConnect();
 
-  const body = await req.json();
   try {
     let product;
     if (body.restock !== undefined) {
@@ -45,7 +47,7 @@ export async function PUT(req, { params }) {
     if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(product);
   } catch (err) {
-    const msg = err.code === 11000 ? "SKU already exists" : err.message;
+    const msg = friendlyError(err, { sku: "SKU already exists" });
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 }

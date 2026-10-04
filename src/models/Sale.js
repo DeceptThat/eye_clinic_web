@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { timestampId } from "@/lib/ids";
+import { assignNumber } from "@/lib/ids";
 
 const SaleItemSchema = new mongoose.Schema(
   {
@@ -14,8 +14,9 @@ const SaleItemSchema = new mongoose.Schema(
 
 const SaleSchema = new mongoose.Schema(
   {
-    saleNo: { type: String, unique: true },
+    saleNo: { type: String, unique: true, immutable: true },
     patient: { type: mongoose.Schema.Types.ObjectId, ref: "Patient" }, // optional (walk-in customer)
+    appointment: { type: mongoose.Schema.Types.ObjectId, ref: "Appointment" }, // set when sold at checkout of a visit
     items: {
       type: [SaleItemSchema],
       validate: [(v) => v.length > 0, "A sale needs at least one item"],
@@ -30,13 +31,9 @@ const SaleSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Next free number, e.g. S-04102026-031105 (then -2, -3 in the same second)
 SaleSchema.pre("validate", async function () {
-  if (this.saleNo) return;
-  const base = timestampId("S");
-  let no = base;
-  let n = 1;
-  while (await this.constructor.exists({ saleNo: no })) no = `${base}-${++n}`;
-  this.saleNo = no;
+  await assignNumber(this, "saleNo", "S");
 });
 
 export default mongoose.models.Sale || mongoose.model("Sale", SaleSchema);

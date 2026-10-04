@@ -1,29 +1,29 @@
 import mongoose from "mongoose";
-import { timestampId } from "@/lib/ids";
+import { assignNumber } from "@/lib/ids";
+import { EMAIL, PHONE } from "@/lib/formats";
 
 const PatientSchema = new mongoose.Schema(
   {
-    patientNo: { type: String, unique: true },
+    patientNo: { type: String, unique: true, immutable: true },
     firstName: { type: String, trim: true, required: true },
     lastName: { type: String, trim: true, required: true },
-    dateOfBirth: { type: Date, required: true },
+    dateOfBirth: {
+      type: Date,
+      required: true,
+      validate: { validator: (v) => !v || v <= new Date(), message: "Date of birth can't be in the future" },
+    },
     gender: { type: String, enum: ["Male", "Female", "Other"] },
-    phone: { type: String, trim: true, required: true },
-    email: { type: String, trim: true },
+    phone: { type: String, trim: true, required: [true, "Phone is required"], ...PHONE },
+    email: { type: String, trim: true, ...EMAIL },
     address: String,
     medicalNotes: String,
   },
   { timestamps: true }
 );
 
-// Give every new patient a number; if two are created in the same second, add -2, -3...
+// Next free number, e.g. P-04102026-031105 (then -2, -3 in the same second)
 PatientSchema.pre("validate", async function () {
-  if (this.patientNo) return;
-  const base = timestampId("P");
-  let no = base;
-  let n = 1;
-  while (await this.constructor.exists({ patientNo: no })) no = `${base}-${++n}`;
-  this.patientNo = no;
+  await assignNumber(this, "patientNo", "P");
 });
 
 export default mongoose.models.Patient || mongoose.model("Patient", PatientSchema);

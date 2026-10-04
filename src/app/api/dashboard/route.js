@@ -4,7 +4,7 @@ import Appointment from "@/models/Appointment";
 import Sale from "@/models/Sale";
 import Product from "@/models/Product";
 import Patient from "@/models/Patient";
-import "@/models/Doctor";
+import Doctor from "@/models/Doctor";
 import { requireRole } from "@/lib/auth";
 
 const DAY = 24 * 60 * 60000;
@@ -19,8 +19,9 @@ export async function GET(req) {
   const start = new Date(Math.floor((Date.now() + BKK) / DAY) * DAY - BKK);
   const end = new Date(start.getTime() + DAY);
   const now = new Date();
+  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Asia/Bangkok" }).format(now);
 
-  const [todayAppointments, salesAgg, lowStock, expired, patientCount, upcomingCount] = await Promise.all([
+  const [todayAppointments, salesAgg, lowStock, expired, patientCount, upcomingCount, doctors] = await Promise.all([
     Appointment.find({ dateTime: { $gte: start, $lt: end } })
       .sort({ dateTime: 1 })
       .populate([
@@ -37,7 +38,23 @@ export async function GET(req) {
     Product.find({ isActive: true, expiryDate: { $lt: now } }).select("sku name expiryDate"),
     Patient.countDocuments(),
     Appointment.countDocuments({ status: "Scheduled", dateTime: { $gte: now } }),
+    Doctor.find({ isActive: true })
+      .select("doctorNo firstName lastName specialty workingDays timeOff")
+      .sort({ firstName: 1 }),
   ]);
+
+  // Doctors on duty today (with today's time off), and the ones who are not working
+  const onDuty = [];
+  const offToday = [];
+  for (const d of doctors) {
+    const timeOff = (d.timeOff || []).filter((t) => t.start < end && start < t.end);
+    const item = {
+      _id: d._id, doctorNo: d.doctorNo, firstName: d.firstName, lastName: d.lastName,
+      specialty: d.specialty, workingDays: d.workingDays, timeOff,
+    };
+    if (d.workingDays.includes(weekday)) onDuty.push(item);
+    else offToday.push(item);
+  }
 
   return NextResponse.json({
     todayAppointments,
@@ -46,5 +63,9 @@ export async function GET(req) {
     expired,
     patientCount,
     upcomingCount,
+    weekday,
+    dayStart: start,
+    onDuty,
+    offToday,
   });
 }

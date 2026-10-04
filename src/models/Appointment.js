@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
-import { timestampId } from "@/lib/ids";
+import { assignNumber } from "@/lib/ids";
 
 const AppointmentSchema = new mongoose.Schema(
   {
-    appointmentNo: { type: String, unique: true },
+    appointmentNo: { type: String, unique: true, immutable: true },
     patient: { type: mongoose.Schema.Types.ObjectId, ref: "Patient", required: true },
     doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor", required: true },
     dateTime: { type: Date, required: true },
@@ -18,17 +18,14 @@ const AppointmentSchema = new mongoose.Schema(
       default: "Scheduled",
     },
     notes: String,
+    checkedOutAt: Date, // set when the patient has paid / left at checkout
   },
   { timestamps: true }
 );
 
+// Next free number, e.g. A-04102026-031105 (then -2, -3 in the same second)
 AppointmentSchema.pre("validate", async function () {
-  if (this.appointmentNo) return;
-  const base = timestampId("A");
-  let no = base;
-  let n = 1;
-  while (await this.constructor.exists({ appointmentNo: no })) no = `${base}-${++n}`;
-  this.appointmentNo = no;
+  await assignNumber(this, "appointmentNo", "A");
 });
 
 export default mongoose.models.Appointment || mongoose.model("Appointment", AppointmentSchema);

@@ -1,5 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useUser } from "@/components/AppShell";
+import {
+  Alert, Avatar, Badge, EmptyRow, Field, Icon, Modal, Page, PageHeader, SearchInput, Toolbar,
+} from "@/components/ui";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const REASONS = ["Leave", "Sick", "Emergency surgery", "Other"];
@@ -20,28 +24,63 @@ function currentTimeOff(d) {
   return (d.timeOff || []).find((t) => new Date(t.start) <= now && now < new Date(t.end));
 }
 
+function upcomingTimeOff(d) {
+  const now = new Date();
+  return (d.timeOff || []).filter((t) => new Date(t.end) > now).length;
+}
+
+function DayChips({ days }) {
+  return (
+    <div className="flex gap-1">
+      {DAYS.map((day) => {
+        const on = days?.includes(day);
+        return (
+          <span
+            key={day}
+            className={`inline-flex h-6 w-8 items-center justify-center rounded text-[11px] font-medium ${
+              on ? "bg-brand-100 text-brand-700" : "bg-slate-100 text-slate-400"
+            }`}
+          >
+            {day.slice(0, 2)}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function DoctorsPage() {
+  const user = useUser();
+  const isAdmin = user?.role === "Admin";
   const [doctors, setDoctors] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [q, setQ] = useState("");
+  const [specialty, setSpecialty] = useState("");
   const [form, setForm] = useState(null); // null = form hidden
   const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
 
   async function load() {
-    const res = await fetch(`/api/doctors?q=${encodeURIComponent(q)}`);
-    setDoctors(await res.json());
+    const qs = new URLSearchParams({ q });
+    if (specialty) qs.set("specialty", specialty);
+    const res = await fetch(`/api/doctors?${qs}`);
+    const data = await res.json();
+    if (!res.ok) return setError(data.error);
+    setDoctors(data);
+    setLoaded(true);
   }
 
   useEffect(() => {
     load();
-  }, [q]);
+  }, [q, specialty]);
 
   function openNew() {
-    setError("");
+    setFormError("");
     setForm({ ...EMPTY });
   }
 
   function openEdit(d) {
-    setError("");
+    setFormError("");
     setForm({
       ...EMPTY,
       ...d,
@@ -78,7 +117,7 @@ export default function DoctorsPage() {
   async function save(e) {
     e.preventDefault();
     if (form.timeOff.some((t) => !t.start || !t.end || new Date(t.end) <= new Date(t.start))) {
-      return setError("Each time off needs a start and an end that is after the start");
+      return setFormError("Each time off needs a start and an end that is after the start");
     }
     const isEdit = Boolean(form._id);
     const res = await fetch(isEdit ? `/api/doctors/${form._id}` : "/api/doctors", {
@@ -94,9 +133,8 @@ export default function DoctorsPage() {
       }),
     });
     const data = await res.json();
-    if (!res.ok) return setError(data.error);
+    if (!res.ok) return setFormError(data.error);
     setForm(null);
-    setError("");
     load();
   }
 
@@ -104,166 +142,223 @@ export default function DoctorsPage() {
     if (!confirm(`Delete Dr. ${d.firstName} ${d.lastName}?`)) return;
     const res = await fetch(`/api/doctors/${d._id}`, { method: "DELETE" });
     if (!res.ok) return setError((await res.json()).error);
+    setError("");
     load();
   }
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
-  const input = "border rounded px-3 py-2 w-full";
 
   return (
-    <main className="max-w-5xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Doctors</h1>
-        <button onClick={openNew} className="bg-teal-700 text-white px-4 py-2 rounded">
-          + Add doctor
-        </button>
-      </div>
-
-      <input
-        placeholder="Search by name, licence no., specialty or doctor no."
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        className={`${input} mb-4`}
+    <Page>
+      <PageHeader
+        title="Doctors"
+        description={loaded ? `${doctors.filter((d) => d.isActive).length} active of ${doctors.length}` : "Loading…"}
+        actions={
+          isAdmin && (
+            <button onClick={openNew} className="btn btn-primary">
+              <Icon name="plus" className="h-4 w-4" /> Add doctor
+            </button>
+          )
+        }
       />
 
-      {error && <p className="text-red-600 mb-4">{error}</p>}
+      <Toolbar>
+        <SearchInput
+          placeholder="Search by name, licence no., specialty or doctor no."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1">
+          {["", "Optometrist", "Ophthalmologist"].map((s) => (
+            <button
+              key={s || "all"}
+              type="button"
+              onClick={() => setSpecialty(s)}
+              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${
+                specialty === s ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+              }`}
+            >
+              {s || "All specialties"}
+            </button>
+          ))}
+        </div>
+        {user && !isAdmin && <p className="text-sm text-slate-500 sm:px-2">View only: Admin manages doctors.</p>}
+      </Toolbar>
+
+      <Alert onClose={() => setError("")}>{error}</Alert>
+
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Doctor</th>
+              <th>Specialty</th>
+              <th>Licence</th>
+              <th>Working days</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {doctors.map((d) => {
+              const off = currentTimeOff(d);
+              const upcoming = upcomingTimeOff(d);
+              return (
+                <tr key={d._id}>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={`${d.firstName} ${d.lastName}`} tone="violet" />
+                      <div>
+                        <div className="font-medium text-slate-900">Dr. {d.firstName} {d.lastName}</div>
+                        <div className="id-text">{d.doctorNo}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <Badge tone={d.specialty === "Ophthalmologist" ? "violet" : "blue"}>{d.specialty}</Badge>
+                  </td>
+                  <td className="id-text">{d.licenseNo}</td>
+                  <td><DayChips days={d.workingDays} /></td>
+                  <td>
+                    <div className="flex flex-col items-start gap-1">
+                      {!d.isActive ? (
+                        <Badge tone="gray" dot>Inactive</Badge>
+                      ) : off ? (
+                        <Badge tone="amber" dot>Off now · {off.reason}</Badge>
+                      ) : (
+                        <Badge tone="green" dot>Available</Badge>
+                      )}
+                      {upcoming > 0 && !off && (
+                        <span className="text-xs text-slate-500">{upcoming} time off planned</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap text-right">
+                    {isAdmin && (
+                      <>
+                        <button onClick={() => openEdit(d)} className="btn-icon" title="Edit" aria-label="Edit">
+                          <Icon name="edit" className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => remove(d)} className="btn-icon-danger" title="Delete" aria-label="Delete">
+                          <Icon name="trash" className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {loaded && doctors.length === 0 && (
+              <EmptyRow colSpan={6} icon="stethoscope" title="No doctors found" />
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {form && (
-        <form onSubmit={save} className="border rounded p-4 mb-6 grid grid-cols-2 gap-3">
-          <h2 className="col-span-2 font-semibold">
-            {form._id ? `Edit ${form.doctorNo}` : "New doctor"}
-          </h2>
+        <Modal
+          size="lg"
+          title={form._id ? `Edit Dr. ${form.firstName} ${form.lastName}` : "New doctor"}
+          subtitle={form._id ? form.doctorNo : "A doctor number is created automatically."}
+          onClose={() => setForm(null)}
+          footer={
+            <>
+              <button type="button" onClick={() => setForm(null)} className="btn btn-secondary">Cancel</button>
+              <button form="doctor-form" className="btn btn-primary">Save doctor</button>
+            </>
+          }
+        >
+          <form id="doctor-form" onSubmit={save} className="grid gap-4 sm:grid-cols-2">
+            {formError && <div className="sm:col-span-2"><Alert>{formError}</Alert></div>}
+            <Field label="First name">
+              <input className="input" required value={form.firstName} onChange={set("firstName")} />
+            </Field>
+            <Field label="Last name">
+              <input className="input" required value={form.lastName} onChange={set("lastName")} />
+            </Field>
+            <Field label="Specialty">
+              <select className="input" required value={form.specialty} onChange={set("specialty")}>
+                <option value="">Select…</option>
+                <option>Optometrist</option>
+                <option>Ophthalmologist</option>
+              </select>
+            </Field>
+            <Field label="Licence no.">
+              <input className="input" required pattern="[A-Za-z0-9\-]{3,20}" title="Letters, numbers and - (3–20 characters)" value={form.licenseNo} onChange={set("licenseNo")} />
+            </Field>
+            <Field label="Phone">
+              <input className="input" pattern="\+?[0-9\s\(\)\-]{6,20}" title="Digits, spaces, +, - and brackets (6–20 characters)" value={form.phone || ""} onChange={set("phone")} />
+            </Field>
+            <Field label="Email">
+              <input className="input" type="email" value={form.email || ""} onChange={set("email")} />
+            </Field>
 
-          <input className={input} placeholder="First name" required value={form.firstName} onChange={set("firstName")} />
-          <input className={input} placeholder="Last name" required value={form.lastName} onChange={set("lastName")} />
-          <select className={input} required value={form.specialty} onChange={set("specialty")}>
-            <option value="">Specialty</option>
-            <option>Optometrist</option>
-            <option>Ophthalmologist</option>
-          </select>
-          <input className={input} placeholder="Licence no." required value={form.licenseNo} onChange={set("licenseNo")} />
-          <input className={input} placeholder="Phone" value={form.phone || ""} onChange={set("phone")} />
-          <input className={input} type="email" placeholder="Email" value={form.email || ""} onChange={set("email")} />
+            <Field label="Working days" span>
+              <div className="flex flex-wrap gap-2">
+                {DAYS.map((day) => {
+                  const on = form.workingDays.includes(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggleDay(day)}
+                      className={`h-9 w-14 rounded-lg border text-sm font-medium transition-colors ${
+                        on
+                          ? "border-brand-600 bg-brand-600 text-white"
+                          : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
 
-          <div className="col-span-2">
-            <p className="mb-1 text-sm">Working days</p>
-            <div className="flex flex-wrap gap-3">
-              {DAYS.map((day) => (
-                <label key={day} className="flex items-center gap-1">
-                  <input
-                    type="checkbox"
-                    checked={form.workingDays.includes(day)}
-                    onChange={() => toggleDay(day)}
-                  />
-                  {day}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="col-span-2">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-sm">Time off (leave, sick, emergency surgery)</p>
-              <button type="button" onClick={addTimeOff} className="text-teal-500 text-sm">
-                + Add time off
-              </button>
-            </div>
-            {form.timeOff.length === 0 && (
-              <p className="text-sm text-gray-500">No time off</p>
-            )}
-            {form.timeOff.map((t, i) => (
-              <div key={i} className="flex gap-2 mb-2">
-                <input
-                  type="datetime-local"
-                  className={input}
-                  required
-                  value={t.start}
-                  onChange={(e) => updateTimeOff(i, "start", e.target.value)}
-                />
-                <input
-                  type="datetime-local"
-                  className={input}
-                  required
-                  value={t.end}
-                  onChange={(e) => updateTimeOff(i, "end", e.target.value)}
-                />
-                <select
-                  className={input}
-                  value={t.reason}
-                  onChange={(e) => updateTimeOff(i, "reason", e.target.value)}
-                >
-                  {REASONS.map((r) => (
-                    <option key={r}>{r}</option>
-                  ))}
-                </select>
-                <button type="button" onClick={() => removeTimeOff(i)} className="text-red-600 px-2">
-                  ✕
+            <div className="sm:col-span-2">
+              <div className="mb-2 flex items-center justify-between">
+                <div>
+                  <p className="label mb-0">Time off</p>
+                  <p className="text-xs text-slate-500">Leave, sick days or emergency surgery. The doctor can&apos;t be booked during these times.</p>
+                </div>
+                <button type="button" onClick={addTimeOff} className="btn btn-secondary btn-sm">
+                  <Icon name="plus" className="h-3.5 w-3.5" /> Add
                 </button>
               </div>
-            ))}
-          </div>
+              {form.timeOff.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-300 px-4 py-4 text-center text-sm text-slate-500">
+                  No time off planned
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {form.timeOff.map((t, i) => (
+                    <div key={i} className="grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-[1fr_1fr_160px_auto]">
+                      <input type="datetime-local" className="input" required value={t.start}
+                        onChange={(e) => updateTimeOff(i, "start", e.target.value)} aria-label="From" />
+                      <input type="datetime-local" className="input" required value={t.end}
+                        onChange={(e) => updateTimeOff(i, "end", e.target.value)} aria-label="To" />
+                      <select className="input" value={t.reason}
+                        onChange={(e) => updateTimeOff(i, "reason", e.target.value)} aria-label="Reason">
+                        {REASONS.map((r) => <option key={r}>{r}</option>)}
+                      </select>
+                      <button type="button" onClick={() => removeTimeOff(i)} className="btn-icon-danger self-center" aria-label="Remove">
+                        <Icon name="x" className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <label className="col-span-2 flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={form.isActive}
-              onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-            />
-            Active (can be booked)
-          </label>
-
-          <div className="col-span-2 flex gap-2">
-            <button className="bg-teal-700 text-white px-4 py-2 rounded">Save</button>
-            <button type="button" onClick={() => setForm(null)} className="border px-4 py-2 rounded">
-              Cancel
-            </button>
-          </div>
-        </form>
+            <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+              <input type="checkbox" className="checkbox" checked={form.isActive}
+                onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+              Active (can be booked)
+            </label>
+          </form>
+        </Modal>
       )}
-
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-800 text-gray-100 text-left">
-            <th className="p-2">Doctor No.</th>
-            <th className="p-2">Name</th>
-            <th className="p-2">Specialty</th>
-            <th className="p-2">Working days</th>
-            <th className="p-2">Status</th>
-            <th className="p-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {doctors.map((d) => {
-            const off = currentTimeOff(d);
-            return (
-              <tr key={d._id} className="border-b">
-                <td className="p-2 font-mono text-sm">{d.doctorNo}</td>
-                <td className="p-2">Dr. {d.firstName} {d.lastName}</td>
-                <td className="p-2">{d.specialty}</td>
-                <td className="p-2">{d.workingDays?.join(", ") || "-"}</td>
-                <td className="p-2">
-                  {!d.isActive ? (
-                    <span className="text-gray-500">Inactive</span>
-                  ) : off ? (
-                    <span className="text-amber-500">Off now ({off.reason})</span>
-                  ) : (
-                    <span className="text-green-500">Active</span>
-                  )}
-                </td>
-                <td className="p-2 text-right space-x-2">
-                  <button onClick={() => openEdit(d)} className="text-teal-500">Edit</button>
-                  <button onClick={() => remove(d)} className="text-red-600">Delete</button>
-                </td>
-              </tr>
-            );
-          })}
-          {doctors.length === 0 && (
-            <tr>
-              <td colSpan={6} className="p-4 text-center text-gray-500">No doctors found</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </main>
+    </Page>
   );
 }

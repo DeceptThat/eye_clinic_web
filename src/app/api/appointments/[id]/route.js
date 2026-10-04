@@ -1,26 +1,29 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db";
 import Appointment from "@/models/Appointment";
-import "@/models/Patient";
-import "@/models/Doctor";
+import Patient from "@/models/Patient";
+import Doctor from "@/models/Doctor";
 import { checkBooking } from "@/lib/appointmentRules";
 import { requireRole } from "@/lib/auth";
+import { friendlyError } from "@/lib/errors";
+import { BAD_BODY, fail, isId, pick, readBody } from "@/lib/http";
 
 const POPULATE = [
   { path: "patient", select: "patientNo firstName lastName phone" },
   { path: "doctor", select: "doctorNo firstName lastName specialty" },
 ];
-const badId = (id) => !mongoose.Types.ObjectId.isValid(id);
+
+// Fields that can be edited (appointmentNo and checkout are handled by the server)
+const FIELDS = ["patient", "doctor", "dateTime", "reason", "status", "notes"];
 
 export async function GET(req, { params }) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
   const { id } = await params;
-  if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  if (!isId(id)) return fail("Invalid id");
   await dbConnect();
   const appt = await Appointment.findById(id).populate(POPULATE);
-  if (!appt) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!appt) return fail("Not found", 404);
   return NextResponse.json(appt);
 }
 
@@ -28,13 +31,16 @@ export async function PUT(req, { params }) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
   const { id } = await params;
-  if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  if (!isId(id)) return fail("Invalid id");
+  const raw = await readBody(req);
+  if (!raw) return fail(BAD_BODY);
+  const body = pick(raw, FIELDS);
+  if (raw.checkedOutAt) body.checkedOutAt = new Date(); // closing a visit at checkout: server sets the time
   await dbConnect();
 
   const existing = await Appointment.findById(id);
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!existing) return fail("Not found", 404);
 
-  const body = await req.json();
   const next = {
     patient: body.patient ?? String(existing.patient),
     doctor: body.doctor ?? String(existing.doctor),
@@ -42,12 +48,23 @@ export async function PUT(req, { params }) {
     status: body.status ?? existing.status,
   };
 
-  const timeChanged = new Date(next.dateTime).getTime() !== existing.dateTime.getTime();
-  const doctorChanged = next.doctor !== String(existing.doctor);
+  const patientChanged = String(next.patient) !== String(existing.patient);
+  const doctorChanged = String(next.doctor) !== String(existing.doctor);
+  const when = new Date(next.dateTime);
+  if (isNaN(when.getTime())) return fail("Please choose a valid date and time");
+  const timeChanged = when.getTime() !== existing.dateTime.getTime();
   const reopened = existing.status !== "Scheduled" && next.status === "Scheduled";
 
-  // Only re-check the rules when the booking itself changes
-  if (next.status === "Scheduled" && (timeChanged || doctorChanged || reopened)) {
+  // A new patient or doctor must exist, whatever the status
+  if (patientChanged && !(isId(next.patient) && (await Patient.exists({ _id: next.patient })))) {
+    return fail("Patient not found");
+  }
+  if (doctorChanged && !(isId(next.doctor) && (await Doctor.exists({ _id: next.doctor })))) {
+    return fail("Doctor not found");
+  }
+
+  // Re-check the booking rules when the booking itself changes
+  if (next.status === "Scheduled" && (timeChanged || doctorChanged || patientChanged || reopened)) {
     const problem = await checkBooking({
       patientId: next.patient,
       doctorId: next.doctor,
@@ -55,7 +72,7 @@ export async function PUT(req, { params }) {
       excludeId: id,
       checkPast: timeChanged || reopened,
     });
-    if (problem) return NextResponse.json({ error: problem }, { status: 409 });
+    if (problem) return fail(problem, 409);
   }
 
   try {
@@ -65,7 +82,7 @@ export async function PUT(req, { params }) {
     }).populate(POPULATE);
     return NextResponse.json(updated);
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    return fail(friendlyError(err));
   }
 }
 
@@ -73,9 +90,9 @@ export async function DELETE(req, { params }) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
   const { id } = await params;
-  if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  if (!isId(id)) return fail("Invalid id");
   await dbConnect();
   const appt = await Appointment.findByIdAndDelete(id);
-  if (!appt) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!appt) return fail("Not found", 404);
   return NextResponse.json({ ok: true });
 }

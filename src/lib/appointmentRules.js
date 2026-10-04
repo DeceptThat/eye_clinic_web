@@ -1,6 +1,7 @@
 import Doctor from "@/models/Doctor";
 import Patient from "@/models/Patient";
 import Appointment from "@/models/Appointment";
+import { isId } from "@/lib/http";
 
 export const SLOT_MINUTES = 30;
 
@@ -11,6 +12,8 @@ function weekdayInBangkok(date) {
 
 // Returns an error message, or null if the booking is allowed
 export async function checkBooking({ patientId, doctorId, dateTime, excludeId, checkPast = true }) {
+  if (!isId(patientId)) return "Please choose a patient";
+  if (!isId(doctorId)) return "Please choose a doctor";
   const when = new Date(dateTime);
   if (isNaN(when.getTime())) return "Please choose a valid date and time";
   if (checkPast && when < new Date()) return "Cannot book an appointment in the past";
@@ -24,7 +27,7 @@ export async function checkBooking({ patientId, doctorId, dateTime, excludeId, c
   if (!doctor.isActive) return `${name} is inactive and cannot be booked`;
 
   const day = weekdayInBangkok(when);
-  if (!doctor.workingDays.includes(day)) {
+  if (!(doctor.workingDays || []).includes(day)) {
     return `${name} does not work on ${day} (works ${doctor.workingDays.join(", ") || "no days"})`;
   }
 

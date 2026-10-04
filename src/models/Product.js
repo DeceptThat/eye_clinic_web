@@ -1,14 +1,21 @@
 import mongoose from "mongoose";
+import { SKU } from "@/lib/formats";
 
 const ProductSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     brand: { type: String, trim: true },
     category: { type: String, enum: ["Glasses", "Medicine", "Accessory"], required: true },
-    sku: { type: String, required: true, unique: true, trim: true, uppercase: true },
-    price: { type: Number, required: true, min: 0 },        // THB
-    stockQty: { type: Number, required: true, min: 0, default: 0 },
-    reorderLevel: { type: Number, min: 0, default: 5 },     // warn when stock <= this
+    sku: { type: String, required: true, unique: true, trim: true, uppercase: true, ...SKU },
+    price: { type: Number, required: true, min: [0, "Price cannot be negative"] },        // THB
+    stockQty: {
+      type: Number, required: true, min: [0, "Stock cannot be negative"], default: 0,
+      validate: { validator: Number.isInteger, message: "Stock must be a whole number" },
+    },
+    reorderLevel: {
+      type: Number, min: [0, "Reorder level cannot be negative"], default: 5, // warn when stock <= this
+      validate: { validator: Number.isInteger, message: "Reorder level must be a whole number" },
+    },
     expiryDate: Date,                                       // medicine only
     isActive: { type: Boolean, default: true },
   },

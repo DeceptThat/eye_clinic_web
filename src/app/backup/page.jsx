@@ -1,5 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Badge, Icon, Page, PageHeader } from "@/components/ui";
+
+const COLLECTIONS = ["Patients", "Doctors", "Appointments", "Products", "Sales", "Users (no passwords)"];
 
 export default function BackupPage() {
   const [status, setStatus] = useState(null);
@@ -9,33 +12,69 @@ export default function BackupPage() {
   }, []);
 
   return (
-    <main className="max-w-3xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Backup</h1>
+    <Page>
+      <PageHeader title="Backup" description="Keep a copy of the clinic's data safe." />
 
-      <section className="border border-gray-700 rounded p-4 space-y-2">
-        <h2 className="font-semibold">Download a backup now</h2>
-        <p className="text-sm text-gray-400">
-          Exports patients, doctors, appointments, products, sales and users (without passwords) as one JSON file.
-        </p>
-        <a href="/api/backup" className="inline-block bg-teal-700 text-white px-4 py-2 rounded">
-          Download backup
-        </a>
-      </section>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="card p-6">
+          <div className="flex items-start gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+              <Icon name="download" />
+            </span>
+            <div className="flex-1">
+              <h2 className="font-semibold text-slate-900">Download a backup now</h2>
+              <p className="mt-1 text-sm text-slate-500">One JSON file with everything below.</p>
+              <ul className="mt-4 grid grid-cols-2 gap-2 text-sm text-slate-600">
+                {COLLECTIONS.map((c) => (
+                  <li key={c} className="flex items-center gap-2">
+                    <Icon name="check" className="h-4 w-4 text-emerald-600" /> {c}
+                  </li>
+                ))}
+              </ul>
+              <a href="/api/backup" className="btn btn-primary mt-6">
+                <Icon name="download" className="h-4 w-4" /> Download backup
+              </a>
+            </div>
+          </div>
+        </section>
 
-      <section className="border border-gray-700 rounded p-4 space-y-2">
-        <h2 className="font-semibold">Automatic daily backup (server)</h2>
-        {!status ? (
-          <p className="text-gray-400">Checking…</p>
-        ) : status.error ? (
-          <p className="text-red-600">{status.error}</p>
-        ) : !status.configured ? (
-          <p className="text-gray-400">Not set up on this machine. It runs on the deployed server.</p>
-        ) : (
-          <p>
-            Last backup: <b>{status.last ?? "none yet"}</b> · {status.count} kept
-          </p>
-        )}
-      </section>
-    </main>
+        <section className="card p-6">
+          <div className="flex items-start gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+              <Icon name="database" />
+            </span>
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold text-slate-900">Automatic daily backup</h2>
+                {status && !status.error && (
+                  <Badge tone={status.configured && status.last ? "green" : "gray"} dot>
+                    {status.configured ? (status.last ? "Running" : "Waiting for first run") : "Not set up here"}
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                The server saves a full database copy every night at 02:00 and keeps the last 7 days.
+              </p>
+              <dl className="mt-4 grid grid-cols-2 gap-4 rounded-lg bg-slate-50 p-4 text-sm">
+                <div>
+                  <dt className="text-slate-500">Last backup</dt>
+                  <dd className="mt-0.5 font-semibold text-slate-900">
+                    {!status ? "Checking…" : status.error ? "-" : status.configured ? status.last ?? "None yet" : "-"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">Copies kept</dt>
+                  <dd className="mt-0.5 font-semibold text-slate-900">{status?.configured ? status.count : "-"}</dd>
+                </div>
+              </dl>
+              {status?.error && <p className="mt-3 text-sm text-red-600">{status.error}</p>}
+              {status && !status.error && !status.configured && (
+                <p className="mt-3 text-xs text-slate-500">This runs on the deployed server, not on a development laptop.</p>
+              )}
+            </div>
+          </div>
+        </section>
+      </div>
+    </Page>
   );
 }

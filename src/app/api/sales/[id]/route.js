@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db";
 import Sale from "@/models/Sale";
 import Product from "@/models/Product";
+import Appointment from "@/models/Appointment";
 import "@/models/Patient";
 import "@/models/User";
 import { requireRole } from "@/lib/auth";
+import { BAD_BODY, fail, isId, readBody } from "@/lib/http";
 
 const POPULATE = [
   { path: "patient", select: "patientNo firstName lastName" },
   { path: "soldBy", select: "name username" },
 ];
-const badId = (id) => !mongoose.Types.ObjectId.isValid(id);
+const badId = (id) => !isId(id);
 
 export async function GET(req, { params }) {
   const auth = await requireRole(req);
@@ -30,10 +31,11 @@ export async function PUT(req, { params }) {
   if (auth.error) return auth.error;
   const { id } = await params;
   if (badId(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  const body = await readBody(req);
+  if (!body) return fail(BAD_BODY);
   await dbConnect();
 
-  const { status } = await req.json();
-  if (status !== "Voided") {
+  if (body.status !== "Voided") {
     return NextResponse.json({ error: "Only voiding a sale is allowed" }, { status: 400 });
   }
 
@@ -47,6 +49,10 @@ export async function PUT(req, { params }) {
 
   for (const item of sale.items) {
     await Product.updateOne({ _id: item.product }, { $inc: { stockQty: item.qty } });
+  }
+  // The visit goes back to "waiting for checkout" so it can be charged again
+  if (sale.appointment) {
+    await Appointment.updateOne({ _id: sale.appointment }, { $unset: { checkedOutAt: 1 } });
   }
   return NextResponse.json(await sale.populate(POPULATE));
 }

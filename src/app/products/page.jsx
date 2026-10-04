@@ -1,24 +1,31 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useUser } from "@/components/AppShell";
+import {
+  Alert, Badge, EmptyRow, Field, Icon, Modal, Page, PageHeader, SearchInput, Toolbar, baht, fmtDate,
+} from "@/components/ui";
 
 const CATEGORIES = ["Glasses", "Medicine", "Accessory"];
+const CATEGORY_TONE = { Glasses: "blue", Medicine: "violet", Accessory: "gray" };
 const EMPTY = {
   name: "", brand: "", category: "", sku: "", price: "",
   stockQty: 0, reorderLevel: 5, expiryDate: "", isActive: true,
 };
-const baht = (n) => `฿${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 
 export default function ProductsPage() {
+  const user = useUser();
+  const isAdmin = user?.role === "Admin";
   const [products, setProducts] = useState([]);
-  const [me, setMe] = useState(null);
+  const [loaded, setLoaded] = useState(false);
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
   const [lowOnly, setLowOnly] = useState(false);
   const [form, setForm] = useState(null);
+  const [restockFor, setRestockFor] = useState(null); // product being restocked
+  const [restockQty, setRestockQty] = useState("");
   const [prices, setPrices] = useState({}); // inline price edits: { productId: "1200" }
   const [error, setError] = useState("");
-
-  const isAdmin = me?.role === "Admin";
+  const [formError, setFormError] = useState("");
 
   async function load() {
     const params = new URLSearchParams();
@@ -29,16 +36,14 @@ export default function ProductsPage() {
     const data = await res.json();
     if (!res.ok) return setError(data.error);
     setProducts(data);
+    setLoaded(true);
   }
 
   useEffect(() => {
     load();
   }, [q, category, lowOnly]);
 
-  useEffect(() => {
-    fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null)).then(setMe);
-  }, []);
-
+  // Sends a change; returns the error message, or "" when it worked
   async function send(url, method, body) {
     const res = await fetch(url, {
       method,
@@ -46,13 +51,9 @@ export default function ProductsPage() {
       body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json();
-    if (!res.ok) {
-      setError(data.error);
-      return false;
-    }
-    setError("");
+    if (!res.ok) return data.error || "Something went wrong";
     load();
-    return true;
+    return "";
   }
 
   async function save(e) {
@@ -65,165 +66,262 @@ export default function ProductsPage() {
     };
     if (form._id) delete body.stockQty;          // editing: stock is changed with Restock
     else body.stockQty = Number(form.stockQty);  // new product: starting stock
-    const ok = form._id
+    const err = form._id
       ? await send(`/api/products/${form._id}`, "PUT", body)
       : await send("/api/products", "POST", body);
-    if (ok) setForm(null);
+    if (err) return setFormError(err);
+    setForm(null);
   }
 
   async function savePrice(p) {
     const value = prices[p._id];
     if (value === undefined || value === "" || Number(value) === p.price) return;
-    const ok = await send(`/api/products/${p._id}`, "PUT", { price: Number(value) });
-    if (ok) setPrices({ ...prices, [p._id]: undefined });
+    const err = await send(`/api/products/${p._id}`, "PUT", { price: Number(value) });
+    if (err) return setError(err);
+    setError("");
+    setPrices({ ...prices, [p._id]: undefined });
   }
 
-  async function restock(p) {
-    const qty = prompt(`Add how many to "${p.name}"? (now ${p.stockQty})`);
-    if (!qty) return;
-    await send(`/api/products/${p._id}`, "PUT", { restock: Number(qty) });
+  async function restock(e) {
+    e.preventDefault();
+    const err = await send(`/api/products/${restockFor._id}`, "PUT", { restock: Number(restockQty) });
+    if (err) return setFormError(err);
+    setRestockFor(null);
   }
 
   async function remove(p) {
     if (!confirm(`Delete ${p.name}?`)) return;
-    await send(`/api/products/${p._id}`, "DELETE");
+    const err = await send(`/api/products/${p._id}`, "DELETE");
+    setError(err);
   }
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
-  const input = "border rounded px-3 py-2 w-full";
   const isLow = (p) => p.stockQty <= p.reorderLevel;
   const isExpired = (p) => p.expiryDate && new Date(p.expiryDate) < new Date();
+  const lowCount = products.filter(isLow).length;
 
   return (
-    <main className="max-w-6xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Products &amp; Prices</h1>
-        {isAdmin && (
-          <button onClick={() => { setError(""); setForm({ ...EMPTY }); }}
-            className="bg-teal-700 text-white px-4 py-2 rounded">+ Add product</button>
-        )}
-      </div>
+    <Page>
+      <PageHeader
+        title="Products & Prices"
+        description="Glasses, medicine and accessories sold at the front desk."
+        actions={
+          isAdmin && (
+            <button onClick={() => { setFormError(""); setForm({ ...EMPTY }); }} className="btn btn-primary">
+              <Icon name="plus" className="h-4 w-4" /> Add product
+            </button>
+          )
+        }
+      />
 
-      <div className="grid grid-cols-4 gap-3 mb-4">
-        <input className={`${input} col-span-2`} placeholder="Search name, brand or SKU"
-          value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className={input} value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="">All categories</option>
-          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-        </select>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />
+      <Toolbar>
+        <SearchInput placeholder="Search name, brand or SKU" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1">
+          {["", ...CATEGORIES].map((c) => (
+            <button
+              key={c || "all"}
+              type="button"
+              onClick={() => setCategory(c)}
+              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${
+                category === c ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+              }`}
+            >
+              {c || "All"}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 whitespace-nowrap px-1 text-sm text-slate-700">
+          <input type="checkbox" className="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />
           Low stock only
         </label>
+      </Toolbar>
+
+      {user && !isAdmin && (
+        <Alert tone="blue">View only: prices and stock are managed by Admin.</Alert>
+      )}
+      {lowCount > 0 && !lowOnly && (
+        <Alert tone="amber">
+          {lowCount} product{lowCount === 1 ? " is" : "s are"} at or below the reorder level.{" "}
+          <button className="font-medium underline" onClick={() => setLowOnly(true)}>Show them</button>
+        </Alert>
+      )}
+      <Alert onClose={() => setError("")}>{error}</Alert>
+
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Expiry</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((p) => (
+              <tr key={p._id} className={p.isActive ? "" : "opacity-60"}>
+                <td>
+                  <div className="font-medium text-slate-900">{p.name}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="id-text">{p.sku}</span>
+                    {p.brand && <span className="text-xs text-slate-500">· {p.brand}</span>}
+                    {!p.isActive && <Badge tone="gray">Inactive</Badge>}
+                  </div>
+                </td>
+                <td><Badge tone={CATEGORY_TONE[p.category]}>{p.category}</Badge></td>
+                <td>
+                  {isAdmin ? (
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">฿</span>
+                        <input
+                          type="number" min="0" step="0.01"
+                          className="input w-28 py-1.5 pl-6"
+                          value={prices[p._id] ?? p.price}
+                          onChange={(e) => setPrices({ ...prices, [p._id]: e.target.value })}
+                          onKeyDown={(e) => e.key === "Enter" && savePrice(p)}
+                          aria-label={`Price of ${p.name}`}
+                        />
+                      </div>
+                      {prices[p._id] !== undefined && Number(prices[p._id]) !== p.price && (
+                        <button onClick={() => savePrice(p)} className="btn btn-primary btn-sm">Save</button>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="font-medium text-slate-900">{baht(p.price)}</span>
+                  )}
+                </td>
+                <td>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-semibold ${isLow(p) ? "text-amber-700" : "text-slate-900"}`}>{p.stockQty}</span>
+                    {isLow(p) && <Badge tone="amber">Low</Badge>}
+                  </div>
+                  <div className="text-xs text-slate-500">reorder at {p.reorderLevel}</div>
+                </td>
+                <td className="whitespace-nowrap">
+                  {p.expiryDate ? (
+                    isExpired(p) ? <Badge tone="red">Expired {fmtDate(p.expiryDate)}</Badge> : fmtDate(p.expiryDate)
+                  ) : (
+                    <span className="text-slate-400">-</span>
+                  )}
+                </td>
+                <td className="whitespace-nowrap text-right">
+                  {isAdmin && (
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        onClick={() => { setFormError(""); setRestockQty(""); setRestockFor(p); }}
+                        className="btn btn-secondary btn-sm"
+                      >
+                        <Icon name="plus" className="h-3.5 w-3.5" /> Restock
+                      </button>
+                      <button
+                        onClick={() => { setFormError(""); setForm({ ...EMPTY, ...p, expiryDate: p.expiryDate?.slice(0, 10) ?? "" }); }}
+                        className="btn-icon" title="Edit" aria-label="Edit"
+                      >
+                        <Icon name="edit" className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => remove(p)} className="btn-icon-danger" title="Delete" aria-label="Delete">
+                        <Icon name="trash" className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {loaded && products.length === 0 && (
+              <EmptyRow colSpan={6} icon="box" title="No products found" />
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {!isAdmin && me && (
-        <p className="text-sm text-gray-400 mb-3">View only: prices and stock can be changed by Admin.</p>
-      )}
-      {error && <p className="text-red-600 mb-4">{error}</p>}
-
       {form && (
-        <form onSubmit={save} className="border rounded p-4 mb-6 grid grid-cols-3 gap-3">
-          <h2 className="col-span-3 font-semibold">{form._id ? `Edit ${form.sku}` : "New product"}</h2>
-          <input className={input} placeholder="Name" required value={form.name} onChange={set("name")} />
-          <input className={input} placeholder="Brand" value={form.brand || ""} onChange={set("brand")} />
-          <select className={input} required value={form.category} onChange={set("category")}>
-            <option value="">Category</option>
-            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-          </select>
-          <input className={input} placeholder="SKU (e.g. GL-001)" required value={form.sku} onChange={set("sku")} />
-          <label className="text-sm">Price (THB)
-            <input className={input} type="number" min="0" step="0.01" required value={form.price} onChange={set("price")} />
-          </label>
-          {form._id ? (
-            <p className="text-sm self-end pb-2">Stock: {form.stockQty} (use Restock to add)</p>
-          ) : (
-            <label className="text-sm">Starting stock
-              <input className={input} type="number" min="0" step="1" required
-                value={form.stockQty} onChange={set("stockQty")} />
+        <Modal
+          title={form._id ? "Edit product" : "New product"}
+          subtitle={form._id ? form.sku : "Stock starts at the number you enter; add more later with Restock."}
+          onClose={() => setForm(null)}
+          footer={
+            <>
+              <button type="button" onClick={() => setForm(null)} className="btn btn-secondary">Cancel</button>
+              <button form="product-form" className="btn btn-primary">Save product</button>
+            </>
+          }
+        >
+          <form id="product-form" onSubmit={save} className="grid gap-4 sm:grid-cols-2">
+            {formError && <div className="sm:col-span-2"><Alert>{formError}</Alert></div>}
+            <Field label="Name" span>
+              <input className="input" required value={form.name} onChange={set("name")} />
+            </Field>
+            <Field label="Brand">
+              <input className="input" value={form.brand || ""} onChange={set("brand")} />
+            </Field>
+            <Field label="Category">
+              <select className="input" required value={form.category} onChange={set("category")}>
+                <option value="">Select…</option>
+                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </Field>
+            <Field label="SKU" hint="e.g. GL-001">
+              <input className="input" required pattern="[A-Za-z0-9\-]{2,20}" title="Letters, numbers and - (2–20 characters)" value={form.sku} onChange={set("sku")} />
+            </Field>
+            <Field label="Price (THB)">
+              <input className="input" type="number" min="0" step="0.01" required value={form.price} onChange={set("price")} />
+            </Field>
+            {form._id ? (
+              <Field label="Stock" hint="Use Restock to add stock">
+                <input className="input" disabled value={form.stockQty} />
+              </Field>
+            ) : (
+              <Field label="Starting stock">
+                <input className="input" type="number" min="0" step="1" required value={form.stockQty} onChange={set("stockQty")} />
+              </Field>
+            )}
+            <Field label="Reorder level" hint="Warn when stock reaches this number">
+              <input className="input" type="number" min="0" step="1" value={form.reorderLevel} onChange={set("reorderLevel")} />
+            </Field>
+            {form.category === "Medicine" && (
+              <Field label="Expiry date">
+                <input className="input" type="date" required value={form.expiryDate || ""} onChange={set("expiryDate")} />
+              </Field>
+            )}
+            <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+              <input type="checkbox" className="checkbox" checked={form.isActive}
+                onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+              Active (can be sold)
             </label>
-          )}
-          <label className="text-sm">Reorder level
-            <input className={input} type="number" min="0" step="1" value={form.reorderLevel} onChange={set("reorderLevel")} />
-          </label>
-          {form.category === "Medicine" && (
-            <label className="text-sm">Expiry date
-              <input className={input} type="date" required value={form.expiryDate || ""} onChange={set("expiryDate")} />
-            </label>
-          )}
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={form.isActive}
-              onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
-            Active (can be sold)
-          </label>
-          <div className="col-span-3 flex gap-2">
-            <button className="bg-teal-700 text-white px-4 py-2 rounded">Save</button>
-            <button type="button" onClick={() => setForm(null)} className="border px-4 py-2 rounded">Cancel</button>
-          </div>
-        </form>
+          </form>
+        </Modal>
       )}
 
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-800 text-gray-100 text-left">
-            <th className="p-2">SKU</th>
-            <th className="p-2">Product</th>
-            <th className="p-2">Category</th>
-            <th className="p-2">Price</th>
-            <th className="p-2">Stock</th>
-            <th className="p-2">Expiry</th>
-            <th className="p-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((p) => (
-            <tr key={p._id} className={`border-b ${p.isActive ? "" : "opacity-50"}`}>
-              <td className="p-2 font-mono text-sm">{p.sku}</td>
-              <td className="p-2">{p.name}<div className="text-xs text-gray-400">{p.brand}</div></td>
-              <td className="p-2">{p.category}</td>
-              <td className="p-2">
-                {isAdmin ? (
-                  <div className="flex gap-1">
-                    <input type="number" min="0" step="0.01" className="border rounded px-2 py-1 w-24"
-                      value={prices[p._id] ?? p.price}
-                      onChange={(e) => setPrices({ ...prices, [p._id]: e.target.value })}
-                      onKeyDown={(e) => e.key === "Enter" && savePrice(p)} />
-                    {prices[p._id] !== undefined && Number(prices[p._id]) !== p.price && (
-                      <button onClick={() => savePrice(p)} className="text-teal-500 text-sm">Save</button>
-                    )}
-                  </div>
-                ) : (
-                  baht(p.price)
-                )}
-              </td>
-              <td className="p-2">
-                {p.stockQty}
-                {isLow(p) && <span className="ml-2 text-xs bg-amber-600 text-white rounded px-1">LOW</span>}
-              </td>
-              <td className="p-2 text-sm">
-                {p.expiryDate ? (
-                  <span className={isExpired(p) ? "text-red-500" : ""}>
-                    {p.expiryDate.slice(0, 10)}{isExpired(p) && " (expired)"}
-                  </span>
-                ) : "-"}
-              </td>
-              <td className="p-2 text-right space-x-2 whitespace-nowrap">
-                {isAdmin && (
-                  <>
-                    <button onClick={() => restock(p)} className="text-sky-400">Restock</button>
-                    <button onClick={() => { setError(""); setForm({ ...EMPTY, ...p, expiryDate: p.expiryDate?.slice(0, 10) ?? "" }); }}
-                      className="text-teal-500">Edit</button>
-                    <button onClick={() => remove(p)} className="text-red-600">Delete</button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-          {products.length === 0 && (
-            <tr><td colSpan={7} className="p-4 text-center text-gray-500">No products found</td></tr>
-          )}
-        </tbody>
-      </table>
-    </main>
+      {restockFor && (
+        <Modal
+          size="sm"
+          title="Restock"
+          subtitle={`${restockFor.name} · ${restockFor.stockQty} in stock now`}
+          onClose={() => setRestockFor(null)}
+          footer={
+            <>
+              <button type="button" onClick={() => setRestockFor(null)} className="btn btn-secondary">Cancel</button>
+              <button form="restock-form" className="btn btn-primary">Add to stock</button>
+            </>
+          }
+        >
+          <form id="restock-form" onSubmit={restock} className="space-y-4">
+            {formError && <Alert>{formError}</Alert>}
+            <Field label="Quantity to add">
+              <input className="input" type="number" min="1" step="1" required autoFocus
+                value={restockQty} onChange={(e) => setRestockQty(e.target.value)} />
+            </Field>
+            {Number(restockQty) > 0 && (
+              <p className="text-sm text-slate-600">
+                New stock will be <b>{restockFor.stockQty + Number(restockQty)}</b>.
+              </p>
+            )}
+          </form>
+        </Modal>
+      )}
+    </Page>
   );
 }

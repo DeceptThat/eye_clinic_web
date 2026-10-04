@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db";
 import Sale from "@/models/Sale";
 import Product from "@/models/Product";
 import Patient from "@/models/Patient";
+import Appointment from "@/models/Appointment";
 import "@/models/User";
 import { requireRole } from "@/lib/auth";
+import { friendlyError } from "@/lib/errors";
+import { saveWithNumber } from "@/lib/ids";
+import { BAD_BODY, bangkokDay, fail, isId, readBody } from "@/lib/http";
 
 const POPULATE = [
   { path: "patient", select: "patientNo firstName lastName" },
@@ -16,17 +19,24 @@ const POPULATE = [
 export async function GET(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
-  await dbConnect();
-
   const sp = req.nextUrl.searchParams;
   const filter = {};
   const date = sp.get("date");
   if (date) {
-    const start = new Date(`${date}T00:00:00+07:00`);
-    filter.saleDate = { $gte: start, $lt: new Date(start.getTime() + 24 * 60 * 60 * 1000) };
+    const day = bangkokDay(date);
+    if (!day) return fail("Date is not valid");
+    filter.saleDate = { $gte: day.start, $lt: day.end };
   }
   if (sp.get("status")) filter.status = sp.get("status");
   if (sp.get("paymentMethod")) filter.paymentMethod = sp.get("paymentMethod");
+  for (const [key, label] of [["patient", "Patient"], ["soldBy", "Seller"]]) {
+    const v = sp.get(key);
+    if (!v) continue;
+    if (!isId(v)) return fail(`${label} id is not valid`);
+    filter[key] = v;
+  }
+
+  await dbConnect();
 
   const sales = await Sale.find(filter).sort({ saleDate: -1 }).populate(POPULATE);
   return NextResponse.json(sales);
@@ -35,9 +45,15 @@ export async function GET(req) {
 export async function POST(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
+  const body = await readBody(req);
+  if (!body) return fail(BAD_BODY);
   await dbConnect();
 
-  const { patient, items, paymentMethod } = await req.json();
+  const { items, paymentMethod } = body;
+  let patient = body.patient;
+  if (!["Cash", "Card", "QR transfer"].includes(paymentMethod)) {
+    return fail("Choose a payment method: Cash, Card or QR transfer");
+  }
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: "Add at least one item" }, { status: 400 });
   }
@@ -45,8 +61,8 @@ export async function POST(req) {
   // Combine repeated products and check quantities
   const qtyById = {};
   for (const it of items) {
-    const qty = Number(it.qty);
-    if (!mongoose.Types.ObjectId.isValid(it.product)) {
+    const qty = Number(it?.qty);
+    if (!isId(it?.product)) {
       return NextResponse.json({ error: "Choose a product for every line" }, { status: 400 });
     }
     if (!Number.isInteger(qty) || qty < 1) {
@@ -55,7 +71,24 @@ export async function POST(req) {
     qtyById[it.product] = (qtyById[it.product] || 0) + qty;
   }
 
-  if (patient && !(await Patient.exists({ _id: patient }))) {
+  // Checkout of a visit: the sale belongs to that appointment's patient
+  let appointment = null;
+  if (body.appointment) {
+    if (!isId(body.appointment)) {
+      return NextResponse.json({ error: "Invalid appointment" }, { status: 400 });
+    }
+    appointment = await Appointment.findById(body.appointment);
+    if (!appointment) return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+    if (appointment.status === "Cancelled") {
+      return NextResponse.json({ error: "This appointment was cancelled" }, { status: 409 });
+    }
+    if (appointment.checkedOutAt) {
+      return NextResponse.json({ error: "This visit has already been checked out" }, { status: 409 });
+    }
+    patient = String(appointment.patient);
+  }
+
+  if (patient && !(isId(patient) && (await Patient.exists({ _id: patient })))) {
     return NextResponse.json({ error: "Patient not found" }, { status: 400 });
   }
 
@@ -93,16 +126,21 @@ export async function POST(req) {
   const total = lines.reduce((sum, l) => sum + l.qty * l.unitPrice, 0);
 
   try {
-    const sale = await Sale.create({
+    const sale = new Sale({
       patient: patient || undefined,
+      appointment: appointment?._id,
       items: lines,
       total,
       paymentMethod,
       soldBy: auth.user.id,
     });
+    await saveWithNumber(sale, "saleNo"); // retries with the next number if two sales land in the same second
+    if (appointment) {
+      await Appointment.updateOne({ _id: appointment._id }, { status: "Completed", checkedOutAt: new Date() });
+    }
     return NextResponse.json(await sale.populate(POPULATE), { status: 201 });
   } catch (err) {
     await giveBack();
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    return fail(friendlyError(err));
   }
 }
