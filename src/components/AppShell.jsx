@@ -112,12 +112,38 @@ export default function AppShell({ children }) {
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Check the session on every page change; expired -> back to the login page
   useEffect(() => {
     if (pathname === "/login") return;
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setUser);
-  }, [pathname]);
+    fetch("/api/auth/me").then(async (r) => {
+      if (r.ok) return setUser(await r.json());
+      router.replace("/login");
+    });
+  }, [pathname, router]);
+
+  // While someone is using the portal, keep the session alive (it ends after 30 idle minutes).
+  // Coming back to an old tab re-checks it straight away.
+  useEffect(() => {
+    if (pathname === "/login") return;
+    let active = false;
+    const markActive = () => { active = true; };
+    const check = () =>
+      fetch("/api/auth/me").then((r) => {
+        if (!r.ok) router.replace("/login");
+      });
+    const onVisible = () => { if (document.visibilityState === "visible") check(); };
+    const timer = setInterval(() => {
+      if (active) { active = false; check(); }
+    }, 5 * 60 * 1000);
+    const events = ["mousedown", "keydown", "touchstart", "scroll"];
+    events.forEach((e) => window.addEventListener(e, markActive, { passive: true }));
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      events.forEach((e) => window.removeEventListener(e, markActive));
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [pathname, router]);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });

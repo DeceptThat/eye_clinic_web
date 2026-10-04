@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { dbConnect } from "@/lib/db";
 import User from "@/models/User";
-import { createToken } from "@/lib/auth";
+import { createToken, setTokenCookie } from "@/lib/auth";
 import { BAD_BODY, fail, readBody } from "@/lib/http";
 
 export async function POST(req) {
@@ -18,12 +18,6 @@ export async function POST(req) {
     return fail("Wrong username or password", 401);
   }
   const res = NextResponse.json({ name: user.name, role: user.role });
-  res.cookies.set("token", await createToken(user), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    // No maxAge: a session cookie, so closing the browser logs you out.
-    // The token itself still expires after 8 hours (see lib/auth.js).
-  });
+  setTokenCookie(res, await createToken(user));
   return res;
 }
