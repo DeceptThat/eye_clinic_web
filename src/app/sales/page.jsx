@@ -58,6 +58,7 @@ export default function SalesPage() {
 
   async function save(e) {
     e.preventDefault();
+    if (!form) return; // keeps the React Compiler from reading form.items while form is null
     const res = await fetch("/api/sales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
