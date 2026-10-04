@@ -24,6 +24,8 @@ export default function Nav() {
     ["/appointments", "Appointments"],
     ["/patients", "Patients"],
     ["/doctors", "Doctors"],
+    ["/products", "Products"],
+    ["/sales", "Sales"],
     ...(user.role === "Admin" ? [["/users", "Users"]] : []),
   ];
 
