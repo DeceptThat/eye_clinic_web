@@ -21,20 +21,22 @@ export default function Nav() {
   }
 
   const links = [
+    ["/", "Dashboard"],
     ["/appointments", "Appointments"],
     ["/patients", "Patients"],
     ["/doctors", "Doctors"],
     ["/products", "Products"],
     ["/sales", "Sales"],
-    ...(user.role === "Admin" ? [["/users", "Users"]] : []),
+    ...(user.role === "Admin" ? [["/users", "Users"], ["/backup", "Backup"]] : []),
   ];
+  const isActive = (href) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
     <nav className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center gap-6">
       <span className="font-bold text-teal-400">Eye Clinic</span>
       {links.map(([href, label]) => (
         <Link key={href} href={href}
-          className={pathname.startsWith(href) ? "text-white font-semibold" : "text-gray-400"}>
+          className={isActive(href) ? "text-white font-semibold" : "text-gray-400"}>
           {label}
         </Link>
       ))}

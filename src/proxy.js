@@ -5,8 +5,9 @@ export async function proxy(req) {
   const token = req.cookies.get("token")?.value;
   const user = token && (await verifyToken(token));
   if (!user) return NextResponse.redirect(new URL("/login", req.url));
-  if (req.nextUrl.pathname.startsWith("/users") && user.role !== "Admin") {
-    return NextResponse.redirect(new URL("/appointments", req.url));
+  const adminOnly = ["/users", "/backup"];
+  if (adminOnly.some((p) => req.nextUrl.pathname.startsWith(p)) && user.role !== "Admin") {
+    return NextResponse.redirect(new URL("/", req.url));
   }
   return NextResponse.next();
 }

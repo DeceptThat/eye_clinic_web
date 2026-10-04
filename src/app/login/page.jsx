@@ -17,7 +17,7 @@ export default function LoginPage() {
     });
     const data = await res.json();
     if (!res.ok) return setError(data.error);
-    router.push("/appointments");
+    router.push("/");
     router.refresh();
   }
 
