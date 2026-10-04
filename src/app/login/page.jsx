@@ -7,6 +7,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -86,8 +87,17 @@ export default function LoginPage() {
             </div>
             <div>
               <label className="label" htmlFor="password">Password</label>
-              <input id="password" className="input" type="password" autoComplete="current-password" required
-                value={password} onChange={(e) => setPassword(e.target.value)} />
+              <div className="relative">
+                <input id="password" className="input pr-11" type={showPassword ? "text" : "password"}
+                  autoComplete="current-password" required
+                  value={password} onChange={(e) => setPassword(e.target.value)} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 hover:text-slate-700"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  title={showPassword ? "Hide password" : "Show password"}>
+                  <Icon name={showPassword ? "eyeOff" : "eye"} className="h-[18px] w-[18px]" />
+                </button>
+              </div>
             </div>
             <button className="btn btn-primary w-full py-2.5" disabled={busy}>
               {busy ? "Signing in…" : "Sign in"}
