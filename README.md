@@ -8,7 +8,7 @@ Built for **Project 02: Full-Stack CRUD App**.
 |---|---|
 | **Live site** | http://20.48.56.179 |
 | **Repository** | https://github.com/DeceptThat/eye_clinic_web |
-| **Video demo** | _add your unlisted YouTube link here_ |
+| **Video demo** | https://teams.microsoft.com/l/message/19:a654c223-4874-447c-85e9-94f0470f93fd_f806655a-d790-4bff-a259-d87a24b876a0@unq.gbl.spaces/1791560488347?context=%7B%22contextType%22%3A%22chat%22%7D|
 
 ## Team members
 
