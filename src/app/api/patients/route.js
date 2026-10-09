@@ -31,7 +31,7 @@ export async function POST(req) {
   if (!body) return fail(BAD_BODY);
   await dbConnect();
   try {
-    // patientNo is always given by the server
+    
     const patient = new Patient(omit(body, [...SYSTEM_FIELDS, "patientNo"]));
     await saveWithNumber(patient, "patientNo");
     return NextResponse.json(patient, { status: 201 });

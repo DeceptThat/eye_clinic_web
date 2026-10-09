@@ -5,12 +5,12 @@ import { isId } from "@/lib/http";
 
 export const SLOT_MINUTES = 30;
 
-// "Mon", "Tue"... in Thailand time (works the same on your PC and on the VM)
+
 function weekdayInBangkok(date) {
   return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Asia/Bangkok" }).format(date);
 }
 
-// Returns an error message, or null if the booking is allowed
+
 export async function checkBooking({ patientId, doctorId, dateTime, excludeId, checkPast = true }) {
   if (!isId(patientId)) return "Please choose a patient";
   if (!isId(doctorId)) return "Please choose a doctor";

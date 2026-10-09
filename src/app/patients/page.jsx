@@ -28,7 +28,7 @@ function Patients() {
   const [patients, setPatients] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [q, setQ] = useState("");
-  const [form, setForm] = useState(null); // null = form hidden
+  const [form, setForm] = useState(null); 
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -44,7 +44,7 @@ function Patients() {
     load();
   }, [q]);
 
-  // Opened from the dashboard: /patients?new=1
+  
   useEffect(() => {
     if (params.get("new") !== "1") return;
     setFormError("");

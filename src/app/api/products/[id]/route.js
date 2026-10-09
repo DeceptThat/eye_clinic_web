@@ -19,8 +19,8 @@ export async function GET(req, { params }) {
   return NextResponse.json(product);
 }
 
-// Normal edit:  PUT { name, price, ... }
-// Restock:      PUT { restock: 10 }   (adds to current stock)
+
+
 export async function PUT(req, { params }) {
   const auth = await requireRole(req, "Admin");
   if (auth.error) return auth.error;
@@ -39,7 +39,7 @@ export async function PUT(req, { params }) {
       }
       product = await Product.findByIdAndUpdate(id, { $inc: { stockQty: qty } }, { returnDocument: "after" });
     } else {
-      // stockQty is ignored here: stock changes only via Restock or sales
+      
       const { _id, createdAt, updatedAt, __v, stockQty, ...update } = body;
       if (update.category !== "Medicine") update.expiryDate = null;
       product = await Product.findByIdAndUpdate(id, update, { returnDocument: "after", runValidators: true });

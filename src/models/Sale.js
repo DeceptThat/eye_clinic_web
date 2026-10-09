@@ -4,7 +4,7 @@ import { assignNumber } from "@/lib/ids";
 const SaleItemSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-    name: String,   // copied at time of sale, so receipts stay correct
+    name: String,   
     sku: String,
     qty: { type: Number, required: true, min: 1 },
     unitPrice: { type: Number, required: true, min: 0 },
@@ -15,8 +15,8 @@ const SaleItemSchema = new mongoose.Schema(
 const SaleSchema = new mongoose.Schema(
   {
     saleNo: { type: String, unique: true, immutable: true },
-    patient: { type: mongoose.Schema.Types.ObjectId, ref: "Patient" }, // optional (walk-in customer)
-    appointment: { type: mongoose.Schema.Types.ObjectId, ref: "Appointment" }, // set when sold at checkout of a visit
+    patient: { type: mongoose.Schema.Types.ObjectId, ref: "Patient" }, 
+    appointment: { type: mongoose.Schema.Types.ObjectId, ref: "Appointment" }, 
     items: {
       type: [SaleItemSchema],
       validate: [(v) => v.length > 0, "A sale needs at least one item"],
@@ -31,7 +31,7 @@ const SaleSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Next free number, e.g. S-04102026-031105 (then -2, -3 in the same second)
+
 SaleSchema.pre("validate", async function () {
   await assignNumber(this, "saleNo", "S");
 });

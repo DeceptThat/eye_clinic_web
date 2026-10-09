@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { friendlyError } from "@/lib/errors";
 import { BAD_BODY, SYSTEM_FIELDS, fail, omit, readBody } from "@/lib/http";
 
-// GET /api/products?q=ray&category=Glasses&lowStock=1
+
 export async function GET(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;

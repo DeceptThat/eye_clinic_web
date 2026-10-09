@@ -1,4 +1,4 @@
-// Turns database errors into short messages people can read
+
 const LABELS = {
   firstName: "First name", lastName: "Last name", dateOfBirth: "Date of birth", gender: "Gender",
   phone: "Phone", email: "Email", address: "Address", medicalNotes: "Medical notes",

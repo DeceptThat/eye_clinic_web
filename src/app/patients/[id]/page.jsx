@@ -23,7 +23,7 @@ export default function PatientDetailPage() {
     ]).then(([p, a, s]) => {
       if (!p.ok) return setError(p.data.error || "Patient not found");
       setPatient(p.data);
-      setAppointments(a.ok ? [...a.data].reverse() : []); // newest first
+      setAppointments(a.ok ? [...a.data].reverse() : []); 
       setSales(s.ok ? s.data : []);
     });
   }, [id]);
@@ -52,7 +52,7 @@ export default function PatientDetailPage() {
     <Page>
       <BackLink />
 
-      {/* Header */}
+      {}
       <div className="card p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
           <Avatar name={name} size="lg" />
@@ -91,7 +91,7 @@ export default function PatientDetailPage() {
         </dl>
       </div>
 
-      {/* Summary */}
+      {}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Summary label="Visits seen" value={seen.length} />
         <Summary label="Upcoming" value={upcoming.length} />
@@ -99,7 +99,7 @@ export default function PatientDetailPage() {
         <Summary label="Total spent" value={baht(spent)} />
       </div>
 
-      {/* Appointment history */}
+      {}
       <div className="table-wrap">
         <div className="card-header">
           <h2 className="card-title">Appointment history</h2>
@@ -140,7 +140,7 @@ export default function PatientDetailPage() {
         </table>
       </div>
 
-      {/* Purchases */}
+      {}
       <div className="table-wrap">
         <div className="card-header">
           <h2 className="card-title">Purchases</h2>

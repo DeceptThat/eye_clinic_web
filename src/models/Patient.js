@@ -21,7 +21,7 @@ const PatientSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Next free number, e.g. P-04102026-031105 (then -2, -3 in the same second)
+
 PatientSchema.pre("validate", async function () {
   await assignNumber(this, "patientNo", "P");
 });

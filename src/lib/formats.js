@@ -1,4 +1,4 @@
-// Shared format rules (used by the models, so the API checks them on every save)
+
 export const PHONE = {
   match: [/^\+?[\d\s()-]{6,20}$/, "Phone may only contain digits, spaces, +, - and brackets (6–20 characters)"],
 };

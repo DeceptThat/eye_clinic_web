@@ -31,8 +31,8 @@ function Checkout() {
   const [products, setProducts] = useState([]);
   const [patients, setPatients] = useState([]);
 
-  const [selected, setSelected] = useState(null); // { type: "visit", appt } | { type: "walkin", patient }
-  const [cart, setCart] = useState([]); // [{ product: id, qty }]
+  const [selected, setSelected] = useState(null); 
+  const [cart, setCart] = useState([]); 
   const [payment, setPayment] = useState("Cash");
   const [q, setQ] = useState("");
   const [receipt, setReceipt] = useState(null);
@@ -65,7 +65,7 @@ function Checkout() {
     });
   }, [wantedAppointment]);
 
-  // --- selection ---------------------------------------------------
+  
   function selectVisit(appt) {
     setReceipt(null);
     setNotice("");
@@ -82,7 +82,7 @@ function Checkout() {
     setSelected({ type: "walkin", patient: "" });
   }
 
-  // --- cart ----------------------------------------------------------
+  
   const sellable = products.filter(
     (p) => p.isActive && p.stockQty > 0 && !(p.expiryDate && new Date(p.expiryDate) < new Date())
   );
@@ -115,7 +115,7 @@ function Checkout() {
   const total = cart.reduce((sum, line) => sum + (productById(line.product)?.price ?? 0) * line.qty, 0);
   const itemCount = cart.reduce((sum, line) => sum + line.qty, 0);
 
-  // --- actions -------------------------------------------------------
+  
   async function completeSale() {
     if (!selected || cart.length === 0) return;
     setBusy(true);
@@ -182,7 +182,7 @@ function Checkout() {
       {notice && <Alert tone="green" onClose={() => setNotice("")}>{notice}</Alert>}
 
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)_360px]">
-        {/* ---------------- Queue ---------------- */}
+        {}
         <aside className="card h-fit">
           <div className="card-header">
             <h2 className="card-title">Today&apos;s visits</h2>
@@ -201,7 +201,7 @@ function Checkout() {
           </div>
         </aside>
 
-        {/* ---------------- Middle: customer + products ---------------- */}
+        {}
         <section className={`min-w-0 space-y-6 ${selected && !receipt ? "" : "xl:col-span-2"}`}>
           {receipt ? (
             <Receipt receipt={receipt} cashier={user?.name} onNext={() => setReceipt(null)} />
@@ -281,7 +281,7 @@ function Checkout() {
           )}
         </section>
 
-        {/* ---------------- Right: cart + payment ---------------- */}
+        {}
         {selected && !receipt && (
           <aside className="card h-fit lg:col-start-2 xl:col-start-auto xl:sticky xl:top-6">
             <div className="card-header">

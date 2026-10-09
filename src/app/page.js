@@ -18,7 +18,7 @@ export default function Dashboard() {
   const user = useUser();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const [now, setNow] = useState(0); // current time for the duty board, ticks every minute
+  const [now, setNow] = useState(0); 
 
   useEffect(() => {
     fetch("/api/dashboard").then(async (r) => {

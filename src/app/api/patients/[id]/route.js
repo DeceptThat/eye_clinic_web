@@ -26,7 +26,7 @@ export async function PUT(req, { params }) {
   if (!body) return fail(BAD_BODY);
   await dbConnect();
   try {
-    // The patient number never changes
+    
     const patient = await Patient.findByIdAndUpdate(id, omit(body, [...SYSTEM_FIELDS, "patientNo"]), {
       returnDocument: "after",
       runValidators: true,

@@ -4,7 +4,7 @@ import Sale from "@/models/Sale";
 import User from "@/models/User";
 import { requireRole } from "@/lib/auth";
 
-// GET /api/sales/sellers -> staff who have made sales (for the "Sold by" filter)
+
 export async function GET(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;

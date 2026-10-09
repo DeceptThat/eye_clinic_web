@@ -15,7 +15,7 @@ function toLocalInput(iso) {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
-// Today's date in Thailand as YYYY-MM-DD (en-CA formats dates that way)
+
 const bangkokToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 
 const dayLabel = (iso) =>
@@ -39,7 +39,7 @@ function Appointments() {
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [filters, setFilters] = useState({ date: "", doctor: "", status: "" });
-  const [form, setForm] = useState(null); // null = form hidden
+  const [form, setForm] = useState(null); 
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -61,7 +61,7 @@ function Appointments() {
     fetch("/api/doctors").then((r) => (r.ok ? r.json() : [])).then(setDoctors);
   }, []);
 
-  // Opened from the dashboard or a patient page: /appointments?new=1&doctor=<id>&time=<iso>&patient=<id>
+  
   useEffect(() => {
     if (params.get("new") !== "1") return;
     const time = params.get("time");
@@ -151,7 +151,7 @@ function Appointments() {
   const setFilter = (field) => (e) => setFilters({ ...filters, [field]: e.target.value });
   const today = bangkokToday();
 
-  // New bookings: only active doctors (but keep the current one when editing)
+  
   const bookableDoctors = form ? doctors.filter((d) => d.isActive || d._id === form.doctor) : [];
   const hasFilters = filters.date || filters.doctor || filters.status;
 

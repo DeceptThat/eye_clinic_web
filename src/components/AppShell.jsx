@@ -112,7 +112,7 @@ export default function AppShell({ children }) {
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Check the session on every page change; expired -> back to the login page
+  
   useEffect(() => {
     if (pathname === "/login") return;
     fetch("/api/auth/me").then(async (r) => {
@@ -121,8 +121,8 @@ export default function AppShell({ children }) {
     });
   }, [pathname, router]);
 
-  // While someone is using the portal, keep the session alive (it ends after 30 idle minutes).
-  // Coming back to an old tab re-checks it straight away.
+  
+  
   useEffect(() => {
     if (pathname === "/login") return;
     let active = false;
@@ -152,18 +152,18 @@ export default function AppShell({ children }) {
     router.refresh();
   }
 
-  // The login page has its own full-screen layout
+  
   if (pathname === "/login") return children;
 
   return (
     <UserContext.Provider value={user}>
       <div className="min-h-screen">
-        {/* Desktop sidebar */}
+        {}
         <aside className="no-print fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-white lg:block">
           <SidebarContent user={user} pathname={pathname} onLogout={logout} />
         </aside>
 
-        {/* Mobile top bar + drawer */}
+        {}
         <header className="no-print sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
           <Brand />
           <button type="button" className="btn-icon" onClick={() => setMenuOpen(true)} aria-label="Open menu">

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Avatar, Icon } from "@/components/ui";
 
-const OPEN_HOUR = 9;   // keep in sync with api/appointments/next-slot
+const OPEN_HOUR = 9;   
 const CLOSE_HOUR = 18;
 const SLOT_MIN = 30;
 const SLOT_MS = SLOT_MIN * 60000;
@@ -27,7 +27,7 @@ export default function DutyBoard({ dayStart, weekday, onDuty, offToday, appoint
     const appts = appointments.filter((a) => a.doctor?._id === d._id && a.status !== "Cancelled");
     let free = 0;
     let booked = 0;
-    let bookedAhead = 0; // booked slots that haven't finished yet
+    let bookedAhead = 0; 
     const cells = slots.map((t) => {
       const end = t + SLOT_MS;
       const appt = appts.find((a) => {
@@ -71,7 +71,7 @@ export default function DutyBoard({ dayStart, weekday, onDuty, offToday, appoint
       ) : (
         <div className="overflow-x-auto">
           <div className="min-w-[900px] px-5 py-4">
-            {/* time header */}
+            {}
             <div className="grid items-end gap-1 pb-2" style={cols}>
               <div />
               {slots.map((t, i) => (
@@ -128,7 +128,7 @@ export default function DutyBoard({ dayStart, weekday, onDuty, offToday, appoint
   );
 }
 
-// "3 free" / "Fully booked" (time left, all taken) / "Day finished" (no time left)
+
 function SlotStatus({ free, bookedAhead }) {
   if (free > 0) return <span className="text-emerald-700">{free} free</span>;
   if (bookedAhead > 0) return <span className="text-red-600">Fully booked</span>;

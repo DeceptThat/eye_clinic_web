@@ -15,7 +15,7 @@ export async function GET(req) {
   if (auth.error) return auth.error;
   await dbConnect();
 
-  // "Today" in Thailand time
+  
   const start = new Date(Math.floor((Date.now() + BKK) / DAY) * DAY - BKK);
   const end = new Date(start.getTime() + DAY);
   const now = new Date();
@@ -43,7 +43,7 @@ export async function GET(req) {
       .sort({ firstName: 1 }),
   ]);
 
-  // Doctors on duty today (with today's time off), and the ones who are not working
+  
   const onDuty = [];
   const offToday = [];
   for (const d of doctors) {

@@ -15,7 +15,7 @@ const POPULATE = [
   { path: "soldBy", select: "name username" },
 ];
 
-// GET /api/sales?date=2026-10-04&status=Completed&paymentMethod=Cash
+
 export async function GET(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
@@ -58,7 +58,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Add at least one item" }, { status: 400 });
   }
 
-  // Combine repeated products and check quantities
+  
   const qtyById = {};
   for (const it of items) {
     const qty = Number(it?.qty);
@@ -71,7 +71,7 @@ export async function POST(req) {
     qtyById[it.product] = (qtyById[it.product] || 0) + qty;
   }
 
-  // Checkout of a visit: the sale belongs to that appointment's patient
+  
   let appointment = null;
   if (body.appointment) {
     if (!isId(body.appointment)) {
@@ -92,7 +92,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Patient not found" }, { status: 400 });
   }
 
-  // Take stock one product at a time; if any fails, give back what was taken
+  
   const taken = [];
   const lines = [];
   const giveBack = async () => {
@@ -120,7 +120,7 @@ export async function POST(req) {
       return NextResponse.json({ error: msg }, { status: 409 });
     }
     taken.push({ id, qty });
-    lines.push({ product: p._id, name: p.name, sku: p.sku, qty, unitPrice: p.price }); // price from DB, not browser
+    lines.push({ product: p._id, name: p.name, sku: p.sku, qty, unitPrice: p.price }); 
   }
 
   const total = lines.reduce((sum, l) => sum + l.qty * l.unitPrice, 0);
@@ -134,7 +134,7 @@ export async function POST(req) {
       paymentMethod,
       soldBy: auth.user.id,
     });
-    await saveWithNumber(sale, "saleNo"); // retries with the next number if two sales land in the same second
+    await saveWithNumber(sale, "saleNo"); 
     if (appointment) {
       await Appointment.updateOne({ _id: appointment._id }, { status: "Completed", checkedOutAt: new Date() });
     }

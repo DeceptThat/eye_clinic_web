@@ -16,7 +16,7 @@ const DoctorSchema = new mongoose.Schema(
     workingDays: {
       type: [{ type: String, enum: { values: DAYS, message: "Working days must be Mon–Sun" } }],
       default: [],
-    }, // e.g. ["Mon", "Wed", "Fri"]
+    }, 
     isActive: { type: Boolean, default: true },
     timeOff: [
       {
@@ -25,7 +25,7 @@ const DoctorSchema = new mongoose.Schema(
           type: Date,
           required: true,
           validate: {
-            // only checks when saving a whole document; routes also check this (see checkTimeOff)
+            
             validator(v) { return !(this?.start instanceof Date) || v > this.start; },
             message: "Time off must end after it starts",
           },
@@ -41,13 +41,13 @@ const DoctorSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Next free number, e.g. D-04102026-031105 (then -2, -3 in the same second)
+
 DoctorSchema.pre("validate", async function () {
   await assignNumber(this, "doctorNo", "D");
 });
 
 export default mongoose.models.Doctor || mongoose.model("Doctor", DoctorSchema);
-// Checks a time-off list sent by the browser. Returns an error message or null.
+
 export function timeOffProblem(list) {
   if (list === undefined) return null;
   if (!Array.isArray(list)) return "Time off is not valid";

@@ -14,10 +14,10 @@ const POPULATE = [
   { path: "doctor", select: "doctorNo firstName lastName specialty" },
 ];
 
-// Fields the browser may set when booking
+
 const FIELDS = ["patient", "doctor", "dateTime", "reason", "notes"];
 
-// GET /api/appointments?date=2026-10-05&doctor=<id>&status=Scheduled&patient=<id>
+
 export async function GET(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
@@ -26,7 +26,7 @@ export async function GET(req) {
 
   const date = sp.get("date");
   if (date) {
-    const day = bangkokDay(date); // whole day in Thailand time
+    const day = bangkokDay(date); 
     if (!day) return fail("Date is not valid");
     filter.dateTime = { $gte: day.start, $lt: day.end };
   }

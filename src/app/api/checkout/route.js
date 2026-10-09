@@ -8,13 +8,13 @@ import { requireRole } from "@/lib/auth";
 const DAY = 24 * 60 * 60000;
 const BKK = 7 * 60 * 60000;
 
-// GET /api/checkout -> today's visits that have not been checked out yet
+
 export async function GET(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
   await dbConnect();
 
-  const start = new Date(Math.floor((Date.now() + BKK) / DAY) * DAY - BKK); // today, Thailand time
+  const start = new Date(Math.floor((Date.now() + BKK) / DAY) * DAY - BKK); 
   const end = new Date(start.getTime() + DAY);
 
   const queue = await Appointment.find({

@@ -25,7 +25,7 @@ export async function GET(req, { params }) {
   return NextResponse.json(sale);
 }
 
-// Void a sale: PUT { status: "Voided" }  -> stock is returned
+
 export async function PUT(req, { params }) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
@@ -39,7 +39,7 @@ export async function PUT(req, { params }) {
     return NextResponse.json({ error: "Only voiding a sale is allowed" }, { status: 400 });
   }
 
-  // Only a Completed sale can be voided (prevents returning stock twice)
+  
   const sale = await Sale.findOneAndUpdate(
     { _id: id, status: "Completed" },
     { status: "Voided", voidedAt: new Date() },
@@ -50,7 +50,7 @@ export async function PUT(req, { params }) {
   for (const item of sale.items) {
     await Product.updateOne({ _id: item.product }, { $inc: { stockQty: item.qty } });
   }
-  // The visit goes back to "waiting for checkout" so it can be charged again
+  
   if (sale.appointment) {
     await Appointment.updateOne({ _id: sale.appointment }, { $unset: { checkedOutAt: 1 } });
   }

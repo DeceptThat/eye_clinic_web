@@ -2,9 +2,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
-/* ------------------------------------------------------------------
-   Icons (stroke icons, 24x24 grid)
-   ------------------------------------------------------------------ */
+
 const ICONS = {
   dashboard: [
     ["rect", { x: 3, y: 3, width: 7, height: 9, rx: 1 }],
@@ -124,9 +122,7 @@ export function Icon({ name, className = "h-5 w-5", strokeWidth = 1.8 }) {
   );
 }
 
-/* ------------------------------------------------------------------
-   Layout pieces
-   ------------------------------------------------------------------ */
+
 export function Page({ children, wide }) {
   return (
     <div className={`mx-auto w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 ${wide ? "max-w-[1400px]" : "max-w-7xl"}`}>
@@ -160,9 +156,7 @@ export function SearchInput({ value, onChange, placeholder }) {
   );
 }
 
-/* ------------------------------------------------------------------
-   Feedback
-   ------------------------------------------------------------------ */
+
 export function Alert({ children, onClose, tone = "red" }) {
   if (!children) return null;
   const tones = {
@@ -239,9 +233,7 @@ export function Avatar({ name = "", tone = "brand", size = "md" }) {
   );
 }
 
-/* ------------------------------------------------------------------
-   Modal
-   ------------------------------------------------------------------ */
+
 export function Modal({ title, subtitle, onClose, children, footer, size = "md" }) {
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
@@ -285,9 +277,7 @@ export function Field({ label, hint, span, children }) {
   );
 }
 
-/* ------------------------------------------------------------------
-   Stat card
-   ------------------------------------------------------------------ */
+
 export function StatCard({ label, value, hint, icon, tone = "brand", href }) {
   const tones = {
     brand: "bg-brand-50 text-brand-600",
@@ -310,9 +300,7 @@ export function StatCard({ label, value, hint, icon, tone = "brand", href }) {
   return href ? <Link href={href}>{body}</Link> : body;
 }
 
-/* ------------------------------------------------------------------
-   Helpers
-   ------------------------------------------------------------------ */
+
 export const baht = (n) =>
   `฿${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -325,7 +313,7 @@ export const fmtTime = (iso) =>
 export const fmtDateTime = (iso) =>
   new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
-// Is this date "today" in Thailand time?
+
 export function isTodayBangkok(iso) {
   const opts = { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" };
   return new Date(iso).toLocaleDateString("en-CA", opts) === new Date().toLocaleDateString("en-CA", opts);

@@ -28,7 +28,7 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Brand panel */}
+      {}
       <div className="relative hidden overflow-hidden bg-linear-to-br from-brand-700 via-brand-600 to-sky-500 p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/30">
@@ -60,12 +60,12 @@ export default function LoginPage() {
 
         <p className="text-xs text-brand-200">© {new Date().getFullYear()} Eye Clinic Management System</p>
 
-        {/* decorative rings */}
+        {}
         <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full border-[40px] border-white/10" />
         <div className="pointer-events-none absolute -top-24 right-24 h-48 w-48 rounded-full border-[24px] border-white/5" />
       </div>
 
-      {/* Form */}
+      {}
       <div className="flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3 lg:hidden">

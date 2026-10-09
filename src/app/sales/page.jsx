@@ -14,7 +14,7 @@ export default function SalesPage() {
   const [loaded, setLoaded] = useState(false);
   const [filters, setFilters] = useState({ date: "", status: "", paymentMethod: "", soldBy: "" });
   const [sellers, setSellers] = useState([]);
-  const [openId, setOpenId] = useState(null); // which receipt is expanded
+  const [openId, setOpenId] = useState(null); 
   const [error, setError] = useState("");
 
   async function load() {

@@ -21,9 +21,9 @@ export default function ProductsPage() {
   const [category, setCategory] = useState("");
   const [lowOnly, setLowOnly] = useState(false);
   const [form, setForm] = useState(null);
-  const [restockFor, setRestockFor] = useState(null); // product being restocked
+  const [restockFor, setRestockFor] = useState(null); 
   const [restockQty, setRestockQty] = useState("");
-  const [prices, setPrices] = useState({}); // inline price edits: { productId: "1200" }
+  const [prices, setPrices] = useState({}); 
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -43,7 +43,7 @@ export default function ProductsPage() {
     load();
   }, [q, category, lowOnly]);
 
-  // Sends a change; returns the error message, or "" when it worked
+  
   async function send(url, method, body) {
     const res = await fetch(url, {
       method,
@@ -64,8 +64,8 @@ export default function ProductsPage() {
       reorderLevel: Number(form.reorderLevel),
       expiryDate: form.category === "Medicine" && form.expiryDate ? form.expiryDate : null,
     };
-    if (form._id) delete body.stockQty;          // editing: stock is changed with Restock
-    else body.stockQty = Number(form.stockQty);  // new product: starting stock
+    if (form._id) delete body.stockQty;          
+    else body.stockQty = Number(form.stockQty);  
     const err = form._id
       ? await send(`/api/products/${form._id}`, "PUT", body)
       : await send("/api/products", "POST", body);

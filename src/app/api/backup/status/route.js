@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import { requireRole } from "@/lib/auth";
 
-// Reads the folder the daily mongodump writes to on the VM (set BACKUP_DIR in .env.local there)
+
 export async function GET(req) {
   const auth = await requireRole(req, "Admin");
   if (auth.error) return auth.error;

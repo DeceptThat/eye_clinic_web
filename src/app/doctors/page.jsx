@@ -12,13 +12,13 @@ const EMPTY = {
   phone: "", email: "", workingDays: [], isActive: true, timeOff: [],
 };
 
-// ISO date from the database -> value for <input type="datetime-local">
+
 function toLocalInput(iso) {
   const d = new Date(iso);
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
-// Is the doctor on time off right now?
+
 function currentTimeOff(d) {
   const now = new Date();
   return (d.timeOff || []).find((t) => new Date(t.start) <= now && now < new Date(t.end));
@@ -56,7 +56,7 @@ export default function DoctorsPage() {
   const [loaded, setLoaded] = useState(false);
   const [q, setQ] = useState("");
   const [specialty, setSpecialty] = useState("");
-  const [form, setForm] = useState(null); // null = form hidden
+  const [form, setForm] = useState(null); 
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -96,7 +96,7 @@ export default function DoctorsPage() {
     const days = form.workingDays.includes(day)
       ? form.workingDays.filter((d) => d !== day)
       : [...form.workingDays, day];
-    setForm({ ...form, workingDays: DAYS.filter((d) => days.includes(d)) }); // keep Mon→Sun order
+    setForm({ ...form, workingDays: DAYS.filter((d) => days.includes(d)) }); 
   }
 
   function addTimeOff() {

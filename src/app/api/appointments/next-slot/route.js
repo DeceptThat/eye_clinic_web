@@ -6,21 +6,21 @@ import { SLOT_MINUTES } from "@/lib/appointmentRules";
 import { requireRole } from "@/lib/auth";
 import { fail, isId } from "@/lib/http";
 
-const OPEN_HOUR = 9;   // clinic opens 09:00 (Thailand time)
-const CLOSE_HOUR = 18; // last appointment must end by 18:00
+const OPEN_HOUR = 9;   
+const CLOSE_HOUR = 18; 
 const STEP = 15 * 60000;
 const SLOT = SLOT_MINUTES * 60000;
 const BKK = 7 * 60 * 60000;
 const DAY = 24 * 60 * 60000;
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-// Start of "today" in Thailand time, as a UTC timestamp
+
 function startOfBangkokDay(t) {
   return Math.floor((t + BKK) / DAY) * DAY - BKK;
 }
 
-// GET /api/appointments/next-slot?doctor=<id>            -> earliest free slot (next 2 weeks)
-// GET /api/appointments/next-slot?doctor=<id>&walkin=1   -> today only, after the last walk-in
+
+
 export async function GET(req) {
   const auth = await requireRole(req);
   if (auth.error) return auth.error;
@@ -42,9 +42,9 @@ export async function GET(req) {
     if (!(doctor.workingDays || []).includes(today)) {
       return NextResponse.json({ error: `${name} isn't working today (${today})` }, { status: 409 });
     }
-    horizon = startOfBangkokDay(now) + DAY; // end of today
+    horizon = startOfBangkokDay(now) + DAY; 
 
-    // Join the end of today's walk-in line
+    
     const lastWalkIn = await Appointment.findOne({
       doctor: doctor._id,
       status: "Scheduled",

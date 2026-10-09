@@ -13,7 +13,7 @@ const POPULATE = [
   { path: "doctor", select: "doctorNo firstName lastName specialty" },
 ];
 
-// Fields that can be edited (appointmentNo and checkout are handled by the server)
+
 const FIELDS = ["patient", "doctor", "dateTime", "reason", "status", "notes"];
 
 export async function GET(req, { params }) {
@@ -35,7 +35,7 @@ export async function PUT(req, { params }) {
   const raw = await readBody(req);
   if (!raw) return fail(BAD_BODY);
   const body = pick(raw, FIELDS);
-  if (raw.checkedOutAt) body.checkedOutAt = new Date(); // closing a visit at checkout: server sets the time
+  if (raw.checkedOutAt) body.checkedOutAt = new Date(); 
   await dbConnect();
 
   const existing = await Appointment.findById(id);
@@ -55,7 +55,7 @@ export async function PUT(req, { params }) {
   const timeChanged = when.getTime() !== existing.dateTime.getTime();
   const reopened = existing.status !== "Scheduled" && next.status === "Scheduled";
 
-  // A new patient or doctor must exist, whatever the status
+  
   if (patientChanged && !(isId(next.patient) && (await Patient.exists({ _id: next.patient })))) {
     return fail("Patient not found");
   }
@@ -63,7 +63,7 @@ export async function PUT(req, { params }) {
     return fail("Doctor not found");
   }
 
-  // Re-check the booking rules when the booking itself changes
+  
   if (next.status === "Scheduled" && (timeChanged || doctorChanged || patientChanged || reopened)) {
     const problem = await checkBooking({
       patientId: next.patient,
